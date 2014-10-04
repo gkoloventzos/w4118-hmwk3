@@ -16,7 +16,7 @@
  * syscall number 378
  */
 
-int sys_set_acceleration(struct dev_acceleration __user * acceleration)
+int sys_set_acceleration(struct dev_acceleration __user *acceleration)
 {
-	return 0;
+	return acceleration->x + acceleration->y + acceleration->z;
 }

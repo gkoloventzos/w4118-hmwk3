@@ -14,7 +14,7 @@
 #include <sys/ioctl.h>
 #include <hardware/hardware.h>
 #include <hardware/sensors.h> /* <-- This is a good place to look! */
-#include "../flo-kernel/include/linux/akm8975.h" 
+#include "../flo-kernel/include/linux/akm8975.h"
 #include "acceleration.h"
 
 /* from sensors.c */
@@ -52,8 +52,8 @@ static int poll_sensor_data(struct sensors_poll_device_t *sensors_device)
     const size_t minBufferSize = numEventMax;
     sensors_event_t buffer[minBufferSize];
 	ssize_t count = sensors_device->poll(sensors_device, buffer, minBufferSize);
+	struct dev_acceleration acceleration;
 	int i;
-
 
 	for (i = 0; i < count; ++i) {
 		if (buffer[i].sensor != effective_sensor)
@@ -61,10 +61,19 @@ static int poll_sensor_data(struct sensors_poll_device_t *sensors_device)
 
 		/* At this point we should have valid data*/
         /* Scale it and pass it to kernel*/
-		dbg("Acceleration: x= %0.2f, y= %0.2f, "
-			"z= %0.2f\n", buffer[i].acceleration.x,
+		dbg("Acceleration: x= %0.3f, y= %0.3f, "
+			"z= %0.3f\n", buffer[i].acceleration.x,
 			buffer[i].acceleration.y, buffer[i].acceleration.z);
 
+		acceleration.x = (int)(buffer[i].acceleration.x*100);
+		acceleration.y = (int)(buffer[i].acceleration.y*100);
+		acceleration.z = (int)(buffer[i].acceleration.z*100);
+
+		printf("%d %d %d\n", acceleration.x, acceleration.y, acceleration.z);
+
+		int result = syscall(378, &acceleration);
+
+		printf("syscall response: %d\n", result);
 	}
 	return 0;
 }
@@ -101,7 +110,7 @@ int main(int argc, char **argv)
 static int open_sensors(struct sensors_module_t **mSensorModule,
 			struct sensors_poll_device_t **mSensorDevice)
 {
-   
+
 	int err = hw_get_module(SENSORS_HARDWARE_MODULE_ID,
 				     (hw_module_t const**)mSensorModule);
 
