@@ -1,3 +1,4 @@
+#include <linux/slab.h>
 #include <linux/acceleration.h>
 
 /*
@@ -15,7 +16,7 @@
  * syscall number 378
  */
 
-int set_acceleration(struct dev_acceleration __user * acceleration)
+int sys_set_acceleration(struct dev_acceleration __user * acceleration)
 {
 	return 0;
 }
