@@ -56,6 +56,7 @@ static int poll_sensor_data(struct sensors_poll_device_t *sensors_device)
     sensors_event_t buffer[minBufferSize];
 	ssize_t count = sensors_device->poll(sensors_device, buffer, minBufferSize);
 	struct dev_acceleration acceleration;
+	int rval;
 	int i;
 
 	for (i = 0; i < count; ++i) {
@@ -74,9 +75,12 @@ static int poll_sensor_data(struct sensors_poll_device_t *sensors_device)
 
 		dbg("%d %d %d\n", acceleration.x, acceleration.y, acceleration.z);
 
-		int result = syscall(378, &acceleration);
+		rval = syscall(378, &acceleration);
 
-		printf("syscall response: %d\n", result);
+		if (!rval) {
+			perror("sys_set_acceleration");
+			return rval;
+		}
 	}
 	return 0;
 }
