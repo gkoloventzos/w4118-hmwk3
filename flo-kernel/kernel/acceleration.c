@@ -26,9 +26,8 @@ int sys_set_acceleration(struct dev_acceleration __user *acceleration)
 	if (current_euid() != 0 && current_uid() != 0)
 		return -EACCES;
 
-	rval = copy_from_user(&dev_acc,
-					      acceleration,
-						  sizeof(struct dev_acceleration));
+	rval = copy_from_user(&dev_acc, acceleration,
+					sizeof(struct dev_acceleration));
 	if (rval < 0)
 		return -EFAULT;
 
