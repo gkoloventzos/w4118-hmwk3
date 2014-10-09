@@ -7,11 +7,13 @@
 #include <bionic/errno.h> /* Google does things a little different...*/
 #include <fcntl.h>
 #include <math.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
+#include <sys/wait.h>
 #include <hardware/hardware.h>
 #include <hardware/sensors.h> /* <-- This is a good place to look! */
 #include "../flo-kernel/include/linux/akm8975.h"
@@ -44,6 +46,7 @@ static int effective_sensor;
 /* helper functions which you should use */
 static int open_sensors(struct sensors_module_t **hw_module,
 			struct sensors_poll_device_t **poll_device);
+
 static void enumerate_sensors(const struct sensors_module_t *sensors);
 
 static int poll_sensor_data(struct sensors_poll_device_t *sensors_device)
@@ -69,7 +72,7 @@ static int poll_sensor_data(struct sensors_poll_device_t *sensors_device)
 		acceleration.y = (int)(buffer[i].acceleration.y*100);
 		acceleration.z = (int)(buffer[i].acceleration.z*100);
 
-		printf("%d %d %d\n", acceleration.x, acceleration.y, acceleration.z);
+		dbg("%d %d %d\n", acceleration.x, acceleration.y, acceleration.z);
 
 		int result = syscall(378, &acceleration);
 
@@ -82,6 +85,8 @@ static int poll_sensor_data(struct sensors_poll_device_t *sensors_device)
    where indicated */
 int main(int argc, char **argv)
 {
+	pid_t pid, sid;
+
 	effective_sensor = -1;
 	struct sensors_module_t *sensors_module = NULL;
 	struct sensors_poll_device_t *sensors_device = NULL;
@@ -94,13 +99,25 @@ int main(int argc, char **argv)
 	}
 	enumerate_sensors(sensors_module);
 
-
 	/* Fill in daemon implementation around here */
 	printf("turn me into a daemon!\n");
-	while (1) {
-		poll_sensor_data(sensors_device);
-	}
 
+	pid = fork();
+	if (pid < 0) {
+		perror("fork");
+		return EXIT_FAILURE;
+	} else if (!pid) {
+		sid = setsid();
+		if (sid < 0) {
+			perror("setsid");
+			return EXIT_FAILURE;
+		}
+
+		printf("I'm a daemon, hooray!\n");
+
+		while (1)
+			poll_sensor_data(sensors_device);
+	}
 	return EXIT_SUCCESS;
 }
 
