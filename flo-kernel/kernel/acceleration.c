@@ -1,11 +1,15 @@
 #include <linux/slab.h>
+#include <linux/syscalls.h>
+#include <asm/uaccess.h>
 #include <linux/acceleration.h>
+#include <asm-generic/errno-base.h>
 
 /*
  * Define time interval (ms)
  */
-
 #define TIME_INTERVAL  200
+
+struct dev_acceleration dev_acc;
 
 /*
  * Set current device acceleration in the kernel.
@@ -15,8 +19,18 @@
  * on failure.
  * syscall number 378
  */
-
 int sys_set_acceleration(struct dev_acceleration __user *acceleration)
 {
-	return acceleration->x + acceleration->y + acceleration->z;
+	int rval;
+
+	if (current_euid() != 0 && current_uid() != 0)
+		return -EACCES;
+
+	rval = copy_from_user(&dev_acc,
+					      acceleration,
+						  sizeof(struct dev_acceleration));
+	if (rval < 0)
+		return -EFAULT;
+
+	return 0;
 }
