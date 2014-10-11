@@ -13,9 +13,19 @@ unless ( -d "./.git" ) {
 	exit 1;
 }
 
+my $rev_list;
+unless (defined $ARGV[0]) {
+	print ON_RED "Trying to find your first commit\n";
+	print ON_RED "Scripts assumes TAs have only one commit";
+	$rev_list = `git rev-list HEAD --reverse`;
+	print "\n";
+}
+
+@rev_list_split = split /\n/, $rev_list;
 my $hash = "";
-$hash = $ARGV[0] ? $ARGV[0] : "37dfc240b08b0889272f1f4510bf5690ceacdd8f";
+$hash = $ARGV[0] ? $ARGV[0] : $rev_list_split[1];
 #unistd.h has problem with the + signs
+print GREEN "Starting from commit with hash $hash\n";
 my $skip = "flo-kernel/arch/arm/include/asm/unistd.h";
 my $checkpath = "flo-kernel/scripts/checkpatch.pl";
 my $out = `git diff --name-only $hash HEAD`;
@@ -26,11 +36,7 @@ foreach my $line (@lines) {
 		my @stdout_in_lines = split /\n/, $stdout;
 		foreach my $new_line (@stdout_in_lines){
 			if ($new_line =~ m/^total/) {
-				if ($new_line =~ m/0 errors, 0 warnings/) {
-					print BOLD GREEN $new_line, "\n";
-					next;
-				}
-				if ($new_line =~ m/0 errors, \d* warnings/) {
+				if ($new_line =~ m/0 errors/) {
 					print BOLD YELLOW $new_line, "\n";
 					next;
 				}
@@ -43,4 +49,3 @@ foreach my $line (@lines) {
 	}
 }
 exit 0;
-#print $out;
