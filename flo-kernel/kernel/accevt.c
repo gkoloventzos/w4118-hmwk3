@@ -7,15 +7,15 @@
 #include <linux/accevt.h>
 #include <asm-generic/errno-base.h> 
 
-int accevt_create(struct acc_motion __user *acceleration){
+int sys_accevt_create(struct acc_motion __user *acceleration){
 
 }
 
-int accevt_wait(int event_id){
+int sys_accevt_wait(int event_id){
 }
 
-int accevt_signal(struct dev_acceleration __user * acceleration){
+int sys_accevt_signal(struct dev_acceleration __user * acceleration){
 }
 
-int accevt_destroy(int event_id){
+int sys_accevt_destroy(int event_id){
 }
