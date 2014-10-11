@@ -51,78 +51,84 @@ static void enumerate_sensors(const struct sensors_module_t *sensors);
 
 static int poll_sensor_data(struct sensors_poll_device_t *sensors_device)
 {
-    const size_t numEventMax = 16;
-    const size_t minBufferSize = numEventMax;
-    sensors_event_t buffer[minBufferSize];
-	ssize_t count = sensors_device->poll(sensors_device, buffer, minBufferSize);
-	struct dev_acceleration acceleration;
-	int rval;
 	int i;
+	int err;
+	ssize_t count;
+	const size_t numEventMax = 16;
+	const size_t minBufferSize = numEventMax;
+	struct dev_acceleration acceleration;
+	sensors_event_t buffer[minBufferSize];
+
+	count = sensors_device->poll(sensors_device, buffer, minBufferSize);
 
 	for (i = 0; i < count; ++i) {
 		if (buffer[i].sensor != effective_sensor)
 			continue;
 
 		/* At this point we should have valid data*/
-        /* Scale it and pass it to kernel*/
-		dbg("Acceleration: x= %0.3f, y= %0.3f, "
-			"z= %0.3f\n", buffer[i].acceleration.x,
-			buffer[i].acceleration.y, buffer[i].acceleration.z);
+		/* Scale it and pass it to kernel*/
+		dbg("Acceleration: x= %0.3f, y= %0.3f, z= %0.3f\n",
+		    buffer[i].acceleration.x,
+		    buffer[i].acceleration.y,
+		    buffer[i].acceleration.z);
 
 		acceleration.x = (int)(buffer[i].acceleration.x*100);
 		acceleration.y = (int)(buffer[i].acceleration.y*100);
 		acceleration.z = (int)(buffer[i].acceleration.z*100);
 
-		dbg("%d %d %d\n", acceleration.x, acceleration.y, acceleration.z);
+		dbg("%d %d %d\n",
+		    acceleration.x, acceleration.y, acceleration.z);
 
-		rval = syscall(378, &acceleration);
-
-		if (!rval) {
-			perror("sys_set_acceleration");
-			return rval;
-		}
+		err = syscall(378, &acceleration);
+		if (err)
+			goto error;
 	}
-	return 0;
+	err = 0;
+error:
+	return err;
 }
 
-/* entry point: fill in daemon implementation
-   where indicated */
+/*
+ * entry point:
+ * daemon implementation
+ */
 int main(int argc, char **argv)
 {
 	pid_t pid, sid;
+	struct sensors_module_t *sensors_module;
+	struct sensors_poll_device_t *sensors_device;
+
 
 	effective_sensor = -1;
-	struct sensors_module_t *sensors_module = NULL;
-	struct sensors_poll_device_t *sensors_device = NULL;
+	sensors_module = NULL;
+	sensors_device = NULL;
 
 	printf("Opening sensors...\n");
 	if (open_sensors(&sensors_module,
 			 &sensors_device) < 0) {
-		printf("open_sensors failed\n");
-		return EXIT_FAILURE;
+		perror("open_sensors");
+		goto exit_failure;
 	}
 	enumerate_sensors(sensors_module);
-
-	/* Fill in daemon implementation around here */
-	printf("turn me into a daemon!\n");
-
 	pid = fork();
 	if (pid < 0) {
 		perror("fork");
-		return EXIT_FAILURE;
+		goto exit_failure;
 	} else if (!pid) {
 		sid = setsid();
 		if (sid < 0) {
 			perror("setsid");
-			return EXIT_FAILURE;
+			goto exit_failure;
 		}
-
-		printf("I'm a daemon, hooray!\n");
-
-		while (1)
-			poll_sensor_data(sensors_device);
+		while (!poll_sensor_data(sensors_device))
+			;
+		perror("poll_sensor_data");
+		goto exit_failure;
 	}
 	return EXIT_SUCCESS;
+
+exit_failure:
+	return EXIT_FAILURE;
 }
 
 /*                DO NOT MODIFY BELOW THIS LINE                    */
@@ -133,7 +139,7 @@ static int open_sensors(struct sensors_module_t **mSensorModule,
 {
 
 	int err = hw_get_module(SENSORS_HARDWARE_MODULE_ID,
-				     (hw_module_t const**)mSensorModule);
+				     (hw_module_t const **)mSensorModule);
 
 	if (err) {
 		printf("couldn't load %s module (%s)",
@@ -154,9 +160,10 @@ static int open_sensors(struct sensors_module_t **mSensorModule,
 		return -1;
 
 	const struct sensor_t *list;
-	ssize_t count = (*mSensorModule)->get_sensors_list(*mSensorModule, &list);
+	ssize_t count = (*mSensorModule)->get_sensors_list(*mSensorModule,
+							   &list);
 	size_t i;
-	for (i=0 ; i<(size_t)count ; i++)
+	for (i = 0 ; i < (size_t) count ; i++)
 		(*mSensorDevice)->activate(*mSensorDevice, list[i].handle, 1);
 
 	return 0;
@@ -177,14 +184,13 @@ static void enumerate_sensors(const struct sensors_module_t *sensors)
 	}
 
 	for (s = 0; s < nr; s++) {
-		printf("%s (%s) v%d\n\tHandle:%d, type:%d, max:%0.2f, "
-			"resolution:%0.2f \n", slist[s].name, slist[s].vendor,
+		printf("%s (%s) v%d\n\tHandle:%d, type:%d, max:%0.2f, "\
+			"resolution: %0.2f\n", slist[s].name, slist[s].vendor,
 			slist[s].version, slist[s].handle, slist[s].type,
 			slist[s].maxRange, slist[s].resolution);
 
 		/* Awful hack to make it work on emulator */
 		if (slist[s].type == 1 && slist[s].handle == 0)
 			effective_sensor = 0; /*the sensor ID*/
-
-                }
+	}
 }

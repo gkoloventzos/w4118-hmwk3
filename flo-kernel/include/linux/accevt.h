@@ -1,7 +1,8 @@
 #ifndef _ACCEVT_H
 #define _ACCEVT_H
 
-#endif
+#include <linux/slab.h>
+
 /*Define the noise*/
 #define NOISE 10
 
@@ -23,7 +24,7 @@ struct acc_motion {
 };
 
 
-	/* Create an event based on motion.  
+	/* Create an event based on motion.
 	* If frq exceeds WINDOW, cap frq at WINDOW.
 	* Return an event_id on success and the appropriate error on failure.
 	* system call number 379
@@ -31,25 +32,26 @@ struct acc_motion {
 
 	int accevt_create(struct acc_motion __user *acceleration);
 
- 	/* Block a process on an event.
-	 * It takes the event_id as parameter. The event_id requires verification.
-	 * Return 0 on success and the appropriate error on failure.
+	/* Block a process on an event.
+	 * It takes the event_id as parameter.
+	 * The event_id requires verification.
+	 * Return 0 on success and the appropriate error` on failure.
 	 * system call number 380
 	 */
-	
+
 	int accevt_wait(int event_id);
 
 
 	/* The acc_signal system call
 	 * takes sensor data from user, stores the data in the kernel,
 	 * generates a motion calculation, and notify all open events whose
-	 * baseline is surpassed.  All processes waiting on a given event 
+	 * baseline is surpassed.  All processes waiting on a given event
 	 * are unblocked.
 	 * Return 0 success and the appropriate error on failure.
 	 * system call number 381
 	 */
 
-	int accevt_signal(struct dev_acceleration __user * acceleration);
+	int accevt_signal(struct dev_acceleration __user *acceleration);
 
 	/* Destroy an acceleration event using the event_id,
 	 * Return 0 on success and the appropriate error on failure.
