@@ -3,6 +3,7 @@
 
 #include <linux/slab.h>
 #include <linux/list.h>
+#include <linux/wait.h>
 
 /*Define the noise*/
 #define NOISE 10
@@ -17,6 +18,9 @@ LIST_HEAD(events_list);
  */
 struct motion_event {
 	unsigned int event_id;
+	struct acc_motion motion;
+	unsigned int happened;
+	wait_queue_head_t my_queue;
 	struct list_head list;
 };
 
