@@ -14,16 +14,21 @@ unless ( -d "./.git" ) {
 }
 
 my $rev_list;
+my $rev_hash_f;
 unless (defined $ARGV[0]) {
-	print ON_RED "Trying to find your first commit\n";
-	print ON_RED "Scripts assumes TAs have only one commit";
+	print ON_RED "Searching for first commit with no TAs mail";
 	$rev_list = `git rev-list HEAD --reverse`;
 	print "\n";
+	foreach my $rev_hash (split /\n/, $rev_list) {
+		my $oo = `git --no-pager show -s --format='%ae' $rev_hash`;
+		if ($oo !~ m/shihwei\@cs\.columbia\.edu/) {
+			$rev_hash_f = $rev_hash;
+			last;
+		}
+	}
 }
 
-@rev_list_split = split /\n/, $rev_list;
-my $hash = "";
-$hash = $ARGV[0] ? $ARGV[0] : $rev_list_split[1];
+my $hash = $ARGV[0] ? $ARGV[0] : $rev_hash_f;
 #unistd.h has problem with the + signs
 print GREEN "Starting from commit with hash $hash\n";
 my $skip = "flo-kernel/arch/arm/include/asm/unistd.h";
