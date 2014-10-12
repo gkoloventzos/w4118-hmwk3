@@ -60,7 +60,7 @@ int sys_accevt_wait(int event_id)
 	int found;
 	found = event_search(event_id, events_list);
 	if (!found)
-		return -ENOMEM;
+		return -ENODATA; //NOT CORRECT ERROR
 }
 
 int sys_accevt_signal(struct dev_acceleration __user *acceleration)
