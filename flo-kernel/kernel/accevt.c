@@ -70,5 +70,16 @@ int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 
 int sys_accevt_destroy(int event_id)
 {
-
+	struct list_head *position;
+	int found;
+	spin_lock(&eventlist_lock);
+	list_for_each(position, &events_list) {
+		if (position->event_id == event_id) {
+			list_del(position,events_list);
+			spin_unlock(&eventlist_lock);
+			return 0;
+		}
+	}
+	spin_unlock(&eventlist_lock);
+	return -ENODATA; //NOT CORRECT ERROR
 }
