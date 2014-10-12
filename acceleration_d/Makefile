@@ -20,11 +20,17 @@ OBJECTS = $(SOURCES:%.c=%.c.o) $(CRUNTIME:%.S=%.S.o)
 INCLUDE = -I. -I./inc -I../flo-kernel/include -I../flo-kernel/arch/arm/include
 EXTRA_LIBS = -lc -lhardware
 DEBUG=0
+MOTION_SUPPORT=0
+EXTRA_CFLAGS=
+
 ifeq ($(DEBUG),1)
-CFLAGS = -g -O2 -Wall $(INCLUDE) $(EXTRA_CFLAGS) -D_DEBUG
-else
-CFLAGS = -g -O2 -Wall $(INCLUDE) $(EXTRA_CFLAGS)
+EXTRA_CFLAGS = -D_DEBUG
 endif
+ifeq ($(MOTION_SUPPORT),1)
+EXTRA_CFLAGS += -D_MOTION_SUPPORT
+endif
+
+CFLAGS = -g -O2 -Wall $(INCLUDE) $(EXTRA_CFLAGS) $(EXTRA_CFLAGS)
 LDFLAGS = --entry=_start --dynamic-linker /system/bin/linker \
           -nostdlib -rpath /system/lib -rpath ./system/lib \
           -L ./system/lib $(EXTRA_LIBS)
