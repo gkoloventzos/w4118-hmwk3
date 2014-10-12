@@ -19,7 +19,12 @@ CRUNTIME = crtbegin_dynamic.S \
 OBJECTS = $(SOURCES:%.c=%.c.o) $(CRUNTIME:%.S=%.S.o)
 INCLUDE = -I. -I./inc -I../flo-kernel/include -I../flo-kernel/arch/arm/include
 EXTRA_LIBS = -lc -lhardware
+DEBUG=0
+ifeq ($(DEBUG),1)
+CFLAGS = -g -O2 -Wall $(INCLUDE) $(EXTRA_CFLAGS) -D_DEBUG
+else
 CFLAGS = -g -O2 -Wall $(INCLUDE) $(EXTRA_CFLAGS)
+endif
 LDFLAGS = --entry=_start --dynamic-linker /system/bin/linker \
           -nostdlib -rpath /system/lib -rpath ./system/lib \
           -L ./system/lib $(EXTRA_LIBS)

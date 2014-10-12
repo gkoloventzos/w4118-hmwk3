@@ -4,6 +4,7 @@
  * Homework 3
  *
  */
+#define _GNU_SOURCE
 #include <bionic/errno.h> /* Google does things a little different...*/
 #include <fcntl.h>
 #include <math.h>
@@ -12,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
 #include <hardware/hardware.h>
@@ -35,19 +37,27 @@
 
 
 /* set to 1 for a bit of debug output */
-#if 1
-	#define dbg(fmt, ...) printf("Accelerometer: " fmt, ## __VA_ARGS__)
+#ifdef _DEBUG
+	#define LOGFILE "/data/misc/accelerometer.log"
+	#define dbg(fmt, ...) fprintf(fp, fmt, ## __VA_ARGS__)
 #else
 	#define dbg(fmt, ...)
 #endif
 
+static FILE *fp;
+
+static volatile sig_atomic_t  stop;
+
 static int effective_sensor;
 
-/* helper functions which you should use */
 static int open_sensors(struct sensors_module_t **hw_module,
 			struct sensors_poll_device_t **poll_device);
-
 static void enumerate_sensors(const struct sensors_module_t *sensors);
+
+static void stop_me(int signal)
+{
+	stop = 1;
+}
 
 static int poll_sensor_data(struct sensors_poll_device_t *sensors_device)
 {
@@ -60,25 +70,16 @@ static int poll_sensor_data(struct sensors_poll_device_t *sensors_device)
 	sensors_event_t buffer[minBufferSize];
 
 	count = sensors_device->poll(sensors_device, buffer, minBufferSize);
-
 	for (i = 0; i < count; ++i) {
 		if (buffer[i].sensor != effective_sensor)
 			continue;
-
 		/* At this point we should have valid data*/
 		/* Scale it and pass it to kernel*/
-		dbg("Acceleration: x= %0.3f, y= %0.3f, z= %0.3f\n",
-		    buffer[i].acceleration.x,
-		    buffer[i].acceleration.y,
-		    buffer[i].acceleration.z);
-
 		acceleration.x = (int)(buffer[i].acceleration.x*100);
 		acceleration.y = (int)(buffer[i].acceleration.y*100);
 		acceleration.z = (int)(buffer[i].acceleration.z*100);
-
-		dbg("%d %d %d\n",
+		dbg("Acceleration: x= %d y= %d z= %d\n",
 		    acceleration.x, acceleration.y, acceleration.z);
-
 		err = syscall(378, &acceleration);
 		if (err)
 			goto error;
@@ -94,10 +95,10 @@ error:
  */
 int main(int argc, char **argv)
 {
-	pid_t pid, sid;
+	int rval;
+	struct sigaction act;
 	struct sensors_module_t *sensors_module;
 	struct sensors_poll_device_t *sensors_device;
-
 
 	effective_sensor = -1;
 	sensors_module = NULL;
@@ -110,21 +111,42 @@ int main(int argc, char **argv)
 		goto exit_failure;
 	}
 	enumerate_sensors(sensors_module);
-	pid = fork();
-	if (pid < 0) {
-		perror("fork");
-		goto exit_failure;
-	} else if (!pid) {
-		sid = setsid();
-		if (sid < 0) {
-			perror("setsid");
-			goto exit_failure;
-		}
-		while (!poll_sensor_data(sensors_device))
-			;
-		perror("poll_sensor_data");
+
+	rval = daemon(0, 0);
+	if (rval < 0) {
+		perror("daemon");
 		goto exit_failure;
 	}
+	memset(&act, 0, sizeof(act));
+	act.sa_handler = &stop_me;
+	act.sa_flags = 0;
+	if (sigaction(SIGINT, &act, NULL) == -1 ||
+	    sigaction(SIGQUIT, &act, NULL) == -1 ||
+	    sigaction(SIGTERM, &act, NULL) == -1) {
+		perror("sigaction");
+		goto exit_failure;
+	}
+#ifdef _DEBUG
+	fp = fopen(LOGFILE, "w+");
+	if (fp == NULL) {
+		perror("fopen");
+		goto exit_failure;
+	}
+#else
+	fp = NULL;
+#endif
+	stop = 0;
+	while (!stop) {
+		rval = poll_sensor_data(sensors_device);
+		if (rval < 0) {
+			perror("poll_sensor_data");
+			goto exit_failure;
+		}
+		usleep(TIME_INTERVAL);
+	}
+#ifdef _DEBUG
+	fclose(fp);
+#endif
 	return EXIT_SUCCESS;
 
 exit_failure:
