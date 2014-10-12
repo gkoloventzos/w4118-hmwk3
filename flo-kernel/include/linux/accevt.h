@@ -4,6 +4,7 @@
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/wait.h>
+#include <linux/acceleration.h>
 
 /*Define the noise*/
 #define NOISE 10
@@ -13,18 +14,6 @@
 
 struct list_head events_list;
 LIST_HEAD(events_list);
-/*
- * Definition of event list
- */
-struct motion_event {
-	unsigned int event_id;
-	struct acc_motion motion;
-	unsigned int happened;
-	wait_queue_head_t my_queue;
-	struct list_head list;
-};
-
-
 
 /*
  * Define the motion.
@@ -40,40 +29,50 @@ struct acc_motion {
 		sum_each_sample(dlt_x + dlt_y + dlt_z) > NOISE */
 };
 
+/*
+ * Definition of event list
+ */
+struct motion_event {
+	unsigned int event_id;
+	struct acc_motion motion;
+	unsigned int happened;
+	wait_queue_head_t my_queue;
+	struct list_head list;
+};
 
-	/* Create an event based on motion.
-	* If frq exceeds WINDOW, cap frq at WINDOW.
-	* Return an event_id on success and the appropriate error on failure.
-	* system call number 379
-	*/
+/* Create an event based on motion.
+ * If frq exceeds WINDOW, cap frq at WINDOW.
+ * Return an event_id on success and the appropriate error on failure.
+ * system call number 379
+ */
 
-	int accevt_create(struct acc_motion __user *acceleration);
+int accevt_create(struct acc_motion __user *acceleration);
 
-	/* Block a process on an event.
-	 * It takes the event_id as parameter.
-	 * The event_id requires verification.
-	 * Return 0 on success and the appropriate error` on failure.
-	 * system call number 380
-	 */
+/* Block a process on an event.
+ * It takes the event_id as parameter.
+ * The event_id requires verification.
+ * Return 0 on success and the appropriate error` on failure.
+ * system call number 380
+ */
 
-	int accevt_wait(int event_id);
+int accevt_wait(int event_id);
 
 
-	/* The acc_signal system call
-	 * takes sensor data from user, stores the data in the kernel,
-	 * generates a motion calculation, and notify all open events whose
-	 * baseline is surpassed.  All processes waiting on a given event
-	 * are unblocked.
-	 * Return 0 success and the appropriate error on failure.
-	 * system call number 381
-	 */
+/* The acc_signal system call
+ * takes sensor data from user, stores the data in the kernel,
+ * generates a motion calculation, and notify all open events whose
+ * baseline is surpassed.  All processes waiting on a given event
+ * are unblocked.
+ * Return 0 success and the appropriate error on failure.
+ * system call number 381
+ */
 
-	int accevt_signal(struct dev_acceleration __user *acceleration);
+int accevt_signal(struct dev_acceleration __user *acceleration);
 
-	/* Destroy an acceleration event using the event_id,
-	 * Return 0 on success and the appropriate error on failure.
-	 * system call number 382
-	 */
+/* Destroy an acceleration event using the event_id,
+ * Return 0 on success and the appropriate error on failure.
+ * system call number 382
+ */
 
-	int accevt_destroy(int event_id);
+int accevt_destroy(int event_id);
 #endif

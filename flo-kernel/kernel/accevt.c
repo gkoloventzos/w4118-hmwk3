@@ -6,23 +6,27 @@
  */
 #include <linux/accevt.h>
 #include <asm-generic/errno-base.h>
+#include <asm/uaccess.h>
 #include <linux/slab.h>
 #include <linux/acceleration.h>
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 static DEFINE_SPINLOCK(events_list_lock);
-static LIST_HEAD(events_list);
 
-static struct list_head *event_search(int event_id, struct list_head *head)
+static 
+struct motion_event *event_search(int event_id, struct list_head *head)
 {
 	struct list_head *position;
-	spin_lock(&eventlist_lock);
+	struct motion_event *event;
+
+	spin_lock(&events_list_lock);
 	list_for_each(position, &events_list) {
-		if (position.event_id == event_id) {
-			return position;
+		event = list_entry(position, struct motion_event, list);
+		if (event->event_id == event_id) {
+			return event;
 		}
 	}
-	spin_unlock(&eventlist_lock);
+	spin_unlock(&events_list_lock);
 	return NULL;
 }
 
@@ -36,32 +40,29 @@ int sys_accevt_create(struct acc_motion __user *acceleration)
 	new_event = kmalloc(sizeof(struct motion_event), GFP_KERNEL);
 	if (new_event == NULL)
 		return -ENOMEM;
-	spin_lock(&eventlist_lock);
+	spin_lock(&events_list_lock);
 	if (!list_empty(&events_list)) {
 		list_for_each(position, &events_list) {
 			++num_events;
 		}
 	}
 	new_event->event_id = ++num_events;
-	new_event->motion.dlt_x = acceleration->dlt_x;
-	new_event->motion.dlt_y = acceleration->dlt_y;
-	new_event->motion.dlt_z = acceleration->dlt_z;
-	new_event->motion.frq = correct_frq;
-	new_event->motion.happened = 0;
-	init_waitqueue_head(&(new_event->motion.my_queue));
-	LIST_HEAD_INIT(new_event->list);
-	list_add(new_event->list, events_list);
-	spin_unlock(&eventlist_lock);
+	new_event->motion = *acceleration;
+	new_event->happened = 0;
+	init_waitqueue_head(&(new_event->my_queue));
+	//LIST_HEAD_INIT(new_event->list);
+	list_add(&(new_event->list), &events_list);
+	spin_unlock(&events_list_lock);
 	return num_events;
 }
 
 int sys_accevt_wait(int event_id)
 {
-	struct list_head *position;
-	position = event_search(position, events_list);
-	if (position == NULL)
+	struct motion_event *evt;
+	evt = event_search(event_id, &events_list);
+	if (evt == NULL)
 		return -ENODATA; //NOT CORRECT ERROR
-
+	return 0;
 }
 
 int sys_accevt_signal(struct dev_acceleration __user *acceleration)
@@ -70,20 +71,19 @@ int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 	struct dev_acceleration tmp_accel;
 	if (copy_from_user(&tmp_accel, acceleration, sizeof(tmp_accel)))
 		return -EFAULT;
-
+	return 0;
 
 }
 
 int sys_accevt_destroy(int event_id)
 {
-	struct list_head *position;
-	int found;
-	spin_lock(&eventlist_lock);
-	position = event_search(event_id, events_list);
-	if (position != NULL) {
+	struct motion_event *event;
+	spin_lock(&events_list_lock);
+	event = event_search(event_id, &events_list);
+	if (event != NULL) {
 		//remove queue?
-		list_del(position);
+		list_del(&(event->list));
 	}
-	spin_unlock(&eventlist_lock);
+	spin_unlock(&events_list_lock);
 	return -ENODATA; //NOT CORRECT ERROR
 }
