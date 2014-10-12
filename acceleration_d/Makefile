@@ -12,10 +12,10 @@ CRUNTIME = crtbegin_dynamic.S \
            crtend.S
 
 # -----------------------------------------------
-# 
+#
 # Don't touch things below here unless
 # you know what you're doing :-)
-# 
+#
 OBJECTS = $(SOURCES:%.c=%.c.o) $(CRUNTIME:%.S=%.S.o)
 INCLUDE = -I. -I./inc -I../flo-kernel/include -I../flo-kernel/arch/arm/include
 EXTRA_LIBS = -lc -lhardware
@@ -72,9 +72,9 @@ run_%: $(TARGET)
 	@echo [RUN] calling $(TARGET_DIR)/$(TARGET) on $(ADB_TGT)...
 	@adb $(ADB_OPT) shell stop akmd
 	@adb $(ADB_OPT) shell start akmd
-	@echo 
+	@echo
 	@echo "You may have to keep your screen off for this to work..."
-	@echo 
+	@echo
 	@sleep 2
 	@echo "$(TARGET_DIR)/$(TARGET) && exit" | adb $(ADB_OPT) shell
 
