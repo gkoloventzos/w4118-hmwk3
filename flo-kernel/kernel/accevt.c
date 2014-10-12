@@ -9,6 +9,7 @@
 #include <linux/slab.h>
 #include <linux/acceleration.h>
 
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 static DEFINE_SPINLOCK(events_list_lock);
 static LIST_HEAD(events_list);
 
@@ -32,6 +33,8 @@ int sys_accevt_create(struct acc_motion __user *acceleration)
 	int num_events = 0;
 	struct motion_event *new_event;
 	struct list_head *position;
+	unsigned int correct_frq;
+	correct_frq = MIN(acceleration->frq, WINDOW);
 	new_event = kmalloc(sizeof(struct motion_event), GFP_KERNEL);
 	if (new_event == NULL)
 		return -ENOMEM;
