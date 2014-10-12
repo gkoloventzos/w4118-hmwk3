@@ -2,12 +2,25 @@
 #define _ACCEVT_H
 
 #include <linux/slab.h>
+#include <linux/list.h>
 
 /*Define the noise*/
 #define NOISE 10
 
 /*Define the window*/
 #define WINDOW 20
+
+struct list_head events_list;
+LIST_HEAD(events_list);
+/*
+ * Definition of event list
+ */
+struct motion_event {
+	unsigned int event_id;
+	struct list_head list;
+};
+
+
 
 /*
  * Define the motion.
