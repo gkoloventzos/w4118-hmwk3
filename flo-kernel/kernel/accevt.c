@@ -67,6 +67,11 @@ int sys_accevt_wait(int event_id)
 int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 {
 
+	struct dev_acceleration tmp_accel;
+	if (copy_from_user(&tmp_accel, acceleration, sizeof(tmp_accel)))
+		return -EFAULT;
+
+
 }
 
 int sys_accevt_destroy(int event_id)
