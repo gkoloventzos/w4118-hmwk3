@@ -13,7 +13,7 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 static DEFINE_SPINLOCK(events_list_lock);
 
-static 
+static
 struct motion_event *event_search(int event_id, struct list_head *head)
 {
 	struct list_head *position;
@@ -22,9 +22,8 @@ struct motion_event *event_search(int event_id, struct list_head *head)
 	spin_lock(&events_list_lock);
 	list_for_each(position, &events_list) {
 		event = list_entry(position, struct motion_event, list);
-		if (event->event_id == event_id) {
+		if (event->event_id == event_id)
 			return event;
-		}
 	}
 	spin_unlock(&events_list_lock);
 	return NULL;
