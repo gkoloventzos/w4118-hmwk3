@@ -1,8 +1,11 @@
 /*
- * Columbia University
- * COMS W4118 Fall 2014
- * Homework 3
+ * accelerationd.c
+ * A user space daemon that read accelerometer sensor
+ * information and registers them into the kernel
  *
+ * Copyright (C) 2014 V. Atlidakis, G. Koloventzos, A. Papancea
+ *
+ * COMS W4118 implementation of user-space daemon
  */
 #define _GNU_SOURCE
 #include <bionic/errno.h> /* Google does things a little different...*/
@@ -40,13 +43,13 @@
 #ifdef _DEBUG
 	#define LOGFILE "/data/misc/accelerometer.log"
 	#define DBG(fmt, ...) fprintf(fp, fmt, ## __VA_ARGS__)
+	static FILE *fp;
 #else
 	#define DBG(fmt, ...)
 #endif
 
-static FILE *fp;
 
-static volatile sig_atomic_t  stop;
+static int  stop;
 
 static int effective_sensor;
 
@@ -64,27 +67,28 @@ static int poll_sensor_data(struct sensors_poll_device_t *sensors_device)
 {
 	int i;
 	int err;
-	ssize_t count;
 	const size_t numEventMax = 16;
 	const size_t minBufferSize = numEventMax;
 	struct dev_acceleration acceleration;
 	sensors_event_t buffer[minBufferSize];
 
-//	count = sensors_device->poll(sensors_device, buffer, minBufferSize);
-//	for (i = 0; i < count; ++i) {
-//		if (buffer[i].sensor != effective_sensor)
-//			continue;
-//		/* At this point we should have valid data*/
-//		/* Scale it and pass it to kernel*/
-//		acceleration.x = (int)(buffer[i].acceleration.x*100);
-//		acceleration.y = (int)(buffer[i].acceleration.y*100);
-//		acceleration.z = (int)(buffer[i].acceleration.z*100);
-//		DBG("Acceleration: x= %d y= %d z= %d\n",
-//		    acceleration.x, acceleration.y, acceleration.z);
+	ssize_t count = sensors_device->poll(sensors_device,
+					     buffer,
+					     minBufferSize);
+	for (i = 0; i < count; ++i) {
+		if (buffer[i].sensor != effective_sensor)
+			continue;
+		/* At this point we should have valid data*/
+		/* Scale it and pass it to kernel*/
+		acceleration.x = (int)(buffer[i].acceleration.x*100);
+		acceleration.y = (int)(buffer[i].acceleration.y*100);
+		acceleration.z = (int)(buffer[i].acceleration.z*100);
+		DBG("Acceleration: x= %d y= %d z= %d\n",
+		    acceleration.x, acceleration.y, acceleration.z);
 		err = syscall(378, &acceleration);
 		if (err)
 			goto error;
-//	}
+	}
 	err = 0;
 error:
 	return err;
@@ -99,13 +103,17 @@ int main(int argc, char **argv)
 	int rval;
 	struct sigaction act;
 	struct sensors_module_t *sensors_module;
-	struct sensors_poll_device_t *sensors_device;
+	struct sensors_poll_device_t *sensors_device = NULL;
+
+	rval = daemon(0, 0);
+	if (rval < 0) {
+		perror("daemon");
+		goto exit_failure;
+	}
 
 	effective_sensor = -1;
 	sensors_module = NULL;
 	sensors_device = NULL;
-
-	printf("Opening sensors...\n");
 	if (open_sensors(&sensors_module,
 			 &sensors_device) < 0) {
 		perror("open_sensors");
@@ -113,11 +121,6 @@ int main(int argc, char **argv)
 	}
 	enumerate_sensors(sensors_module);
 
-	rval = daemon(0, 0);
-	if (rval < 0) {
-		perror("daemon");
-		goto exit_failure;
-	}
 	memset(&act, 0, sizeof(act));
 	act.sa_handler = &stop_me;
 	act.sa_flags = 0;
@@ -127,14 +130,13 @@ int main(int argc, char **argv)
 		perror("sigaction");
 		goto exit_failure;
 	}
+
 #ifdef _DEBUG
 	fp = fopen(LOGFILE, "w+");
 	if (fp == NULL) {
 		perror("fopen");
 		goto exit_failure;
 	}
-#else
-	fp = NULL;
 #endif
 	stop = 0;
 	while (!stop) {
@@ -143,11 +145,15 @@ int main(int argc, char **argv)
 			perror("poll_sensor_data");
 			goto exit_failure;
 		}
-		usleep((useconds_t) TIME_INTERVAL);
+		usleep((useconds_t) 1000 * TIME_INTERVAL);
 	}
 #ifdef _DEBUG
 	fclose(fp);
 #endif
+	if (sensors_close(sensors_device) < 0) {
+		perror("Failed to close sensor device");
+		goto exit_failure;
+	}
 	return EXIT_SUCCESS;
 
 exit_failure:
