@@ -55,10 +55,10 @@ int sys_accevt_create(struct acc_motion __user *acceleration)
 int sys_accevt_wait(int event_id)
 {
 	struct list_head *position;
-	int found;
-	found = event_search(event_id, events_list);
-	if (!found)
+	position = event_search(position, events_list);
+	if (position == NULL)
 		return -ENODATA; //NOT CORRECT ERROR
+
 }
 
 int sys_accevt_signal(struct dev_acceleration __user *acceleration)
@@ -71,12 +71,10 @@ int sys_accevt_destroy(int event_id)
 	struct list_head *position;
 	int found;
 	spin_lock(&eventlist_lock);
-	list_for_each(position, &events_list) {
-		if (position->event_id == event_id) {
-			list_del(position,events_list);
-			spin_unlock(&eventlist_lock);
-			return 0;
-		}
+	position = event_search(event_id, events_list);
+	if (position != NULL) {
+		//remove queue?
+		list_del(position);
 	}
 	spin_unlock(&eventlist_lock);
 	return -ENODATA; //NOT CORRECT ERROR
