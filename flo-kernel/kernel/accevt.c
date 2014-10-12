@@ -45,6 +45,10 @@ int sys_accevt_create(struct acc_motion __user *acceleration)
 		}
 	}
 	new_event->event_id = ++num_events;
+	new_event->motion.dlt_x = acceleration->dlt_x;
+	new_event->motion.dlt_y = acceleration->dlt_y;
+	new_event->motion.dlt_z = acceleration->dlt_z;
+	new_event->motion.frq = correct_frq;
 	list_add(new_event, events_list);
 	spin_unlock(&eventlist_lock);
 	return num_events;
