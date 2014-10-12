@@ -47,7 +47,10 @@ int sys_accevt_create(struct acc_motion __user *acceleration)
 	new_event->motion.dlt_y = acceleration->dlt_y;
 	new_event->motion.dlt_z = acceleration->dlt_z;
 	new_event->motion.frq = correct_frq;
-	list_add(new_event, events_list);
+	new_event->motion.happened = 0;
+	init_waitqueue_head(&(new_event->motion.my_queue));
+	LIST_HEAD_INIT(new_event->list);
+	list_add(new_event->list, events_list);
 	spin_unlock(&eventlist_lock);
 	return num_events;
 }
