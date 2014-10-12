@@ -39,9 +39,9 @@
 /* set to 1 for a bit of debug output */
 #ifdef _DEBUG
 	#define LOGFILE "/data/misc/accelerometer.log"
-	#define dbg(fmt, ...) fprintf(fp, fmt, ## __VA_ARGS__)
+	#define DBG(fmt, ...) fprintf(fp, fmt, ## __VA_ARGS__)
 #else
-	#define dbg(fmt, ...)
+	#define DBG(fmt, ...)
 #endif
 
 static FILE *fp;
@@ -56,6 +56,7 @@ static void enumerate_sensors(const struct sensors_module_t *sensors);
 
 static void stop_me(int signal)
 {
+	DBG("Terminated by signal: %d\n", signal);
 	stop = 1;
 }
 
@@ -69,21 +70,21 @@ static int poll_sensor_data(struct sensors_poll_device_t *sensors_device)
 	struct dev_acceleration acceleration;
 	sensors_event_t buffer[minBufferSize];
 
-	count = sensors_device->poll(sensors_device, buffer, minBufferSize);
-	for (i = 0; i < count; ++i) {
-		if (buffer[i].sensor != effective_sensor)
-			continue;
-		/* At this point we should have valid data*/
-		/* Scale it and pass it to kernel*/
-		acceleration.x = (int)(buffer[i].acceleration.x*100);
-		acceleration.y = (int)(buffer[i].acceleration.y*100);
-		acceleration.z = (int)(buffer[i].acceleration.z*100);
-		dbg("Acceleration: x= %d y= %d z= %d\n",
-		    acceleration.x, acceleration.y, acceleration.z);
+//	count = sensors_device->poll(sensors_device, buffer, minBufferSize);
+//	for (i = 0; i < count; ++i) {
+//		if (buffer[i].sensor != effective_sensor)
+//			continue;
+//		/* At this point we should have valid data*/
+//		/* Scale it and pass it to kernel*/
+//		acceleration.x = (int)(buffer[i].acceleration.x*100);
+//		acceleration.y = (int)(buffer[i].acceleration.y*100);
+//		acceleration.z = (int)(buffer[i].acceleration.z*100);
+//		DBG("Acceleration: x= %d y= %d z= %d\n",
+//		    acceleration.x, acceleration.y, acceleration.z);
 		err = syscall(378, &acceleration);
 		if (err)
 			goto error;
-	}
+//	}
 	err = 0;
 error:
 	return err;
@@ -142,7 +143,7 @@ int main(int argc, char **argv)
 			perror("poll_sensor_data");
 			goto exit_failure;
 		}
-		usleep(TIME_INTERVAL);
+		usleep((useconds_t) TIME_INTERVAL);
 	}
 #ifdef _DEBUG
 	fclose(fp);
