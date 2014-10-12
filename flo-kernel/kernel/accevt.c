@@ -13,19 +13,17 @@
 static DEFINE_SPINLOCK(events_list_lock);
 static LIST_HEAD(events_list);
 
-static int event_search(int event_id, struct list_head *head)
+static struct list_head *event_search(int event_id, struct list_head *head)
 {
 	struct list_head *position;
-	int find = 0;
 	spin_lock(&eventlist_lock);
 	list_for_each(position, &events_list) {
 		if (position.event_id == event_id) {
-			find = 1;
-			break;
+			return position;
 		}
 	}
 	spin_unlock(&eventlist_lock);
-	return find;
+	return NULL;
 }
 
 int sys_accevt_create(struct acc_motion __user *acceleration)
