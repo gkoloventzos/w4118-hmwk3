@@ -22,10 +22,35 @@ struct acceleration_event {
 	struct list_head list;
 };
 static LIST_HEAD(acceleration_events);
-
-
-
 static DEFINE_SPINLOCK(acceleration_events_lock);
+
+/*
+ * Define the motion.
+ * The motion give the baseline for an EVENT.
+ */
+struct acc_motion {
+
+	unsigned int dlt_x; /* +/- around X-axis */
+	unsigned int dlt_y; /* +/- around Y-axis */
+	unsigned int dlt_z; /* +/- around Z-axis */
+
+	unsigned int frq;   /* Number of samples that satisfies:
+		sum_each_sample(dlt_x + dlt_y + dlt_z) > NOISE */
+};
+
+/*
+ * Definition of event list
+ */
+struct motion_event {
+	unsigned int event_id;
+	struct acc_motion motion;
+	unsigned int happened;
+	wait_queue_head_t my_queue;
+	struct list_head list;
+};
+
+LIST_HEAD(motions_list);
+
 
 //static DEFINE_SPINLOCK(mvmt_evt_lock);
 /*
@@ -159,6 +184,7 @@ int check_motions(struct list_head *acceleration_events,
 		return 0;
 	if (list_empty(acceleration_events->next))
 		return 0;
+
 	prv_acc_evt = list_first_entry(acceleration_events, struct acceleration_event, list);
 	match = 0;
 	iter = 0;
@@ -207,7 +233,7 @@ int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 
 	my_motion.dlt_x = 1;
 	my_motion.dlt_y = 1;
-	my_motion.dlt_z = 5;
+	my_motion.dlt_z = 10;
 	my_motion.frq = 3;
 	printk(KERN_ERR "CHECKING MOTIONS\n");
 	if (check_motions(&acceleration_events, my_motion))
