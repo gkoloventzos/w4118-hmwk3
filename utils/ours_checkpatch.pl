@@ -1,17 +1,20 @@
 #!/usr/bin/perl -w
+use File::Basename;
+use Term::ANSIColor qw(:constants);
+local $Term::ANSIColor::AUTORESET = 1;
 
 if ($#ARGV == 0 and ($ARGV[0] =~ m/-h/ or $ARGV[0] !~ m/^[0-9a-f]{40}$/)) {
 	print "Usage: ours_checkpatch.pl SHA\n";
 	exit 0;
 }
 
-use Term::ANSIColor qw(:constants);
-local $Term::ANSIColor::AUTORESET = 1;
-
 unless ( -d "./.git" ) {
 	print "You should run this scipt in the top directory of the kernel\n";
 	exit 1;
 }
+
+my %skip_list = ();
+$skip_list{"flo-kernel/arch/arm/include/asm/unistd.h"} = 1;
 
 my $rev_list;
 my $rev_hash_f;
@@ -36,8 +39,15 @@ my $checkpath = "flo-kernel/scripts/checkpatch.pl";
 my $out = `git diff --name-only $hash HEAD`;
 my @lines = split /\n/, $out;
 foreach my $line (@lines) {
-	unless ( -B $line or $line eq $skip) {
-		$stdout = `$checkpath -terse -no-tree -f $line`;
+	unless (-B $line) {
+		if (exists $skip_list{$line}) {
+			my $file = basename($line);
+			$std = `git diff $hash -- $line > /tmp/$file`;
+			$stdout = `$checkpath --ignore FILE_PATH_CHANGES -terse --no-signoff -no-tree /tmp/$file`;
+			`rm -f /tmp/$file`;
+		} else {
+			$stdout = `$checkpath -terse -no-tree -f $line`;
+		}
 		my @stdout_in_lines = split /\n/, $stdout;
 		foreach my $new_line (@stdout_in_lines){
 			if ($new_line =~ m/^total/) {
