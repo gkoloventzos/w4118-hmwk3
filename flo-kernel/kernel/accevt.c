@@ -109,6 +109,7 @@ int sys_accevt_create(struct acc_motion __user *acceleration)
 	new_event->event_id = ++num_events;
 	list_add(&(new_event->list), &motion_events);
 	spin_unlock(&motions_list_lock);
+	printk( KERN_ERR "Created ecvent eith id:%d\n", num_events);
 	return num_events;
 
 exists:
@@ -132,7 +133,7 @@ int sys_accevt_wait(int event_id)
 /*
  * Helper to substract to movements
  */
-static int matching_motion(struct dev_acceleration first,
+static int matching_acc(struct dev_acceleration first,
 			struct dev_acceleration last,
 			struct acc_motion motion)
 {
@@ -156,7 +157,7 @@ static int matching_motion(struct dev_acceleration first,
  * from the movement data currently buffered into the kernel
  */
 static
-int check_motions(struct list_head *acceleration_events,
+int check_for_motion(struct list_head *acceleration_events,
 		  struct acc_motion motion)
 {
 	struct acceleration_event *cur_acc_evt, *prv_acc_evt;
@@ -172,15 +173,15 @@ int check_motions(struct list_head *acceleration_events,
 	match = 0;
 	iter = 0;
 	list_for_each_entry(cur_acc_evt, acceleration_events, list) {
-		if (!iter){
+		if (!iter) {
 			iter++;
 			prv_acc_evt = cur_acc_evt;
 			continue;
 		}
-		match += matching_motion(prv_acc_evt->dev_acc, cur_acc_evt->dev_acc, motion);
+		match += matching_acc(prv_acc_evt->dev_acc, cur_acc_evt->dev_acc, motion);
 		prv_acc_evt = cur_acc_evt;
 	}
-	if ( match > motion.frq )
+	if (match > motion.frq)
 		return 1;
 	return 0;
 }
@@ -191,7 +192,7 @@ int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 	int rval;
 	int errno;
 	static int events = 0;
-	struct acc_motion my_motion;
+	struct motion_event *mtn;
 	struct acceleration_event *acc_evt;
 
 	acc_evt = kmalloc(sizeof(struct acceleration_event), GFP_KERNEL);
@@ -214,13 +215,16 @@ int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 		events++;
 	list_add_tail(&(acc_evt->list), &acceleration_events);
 
-	my_motion.dlt_x = 1;
-	my_motion.dlt_y = 1;
-	my_motion.dlt_z = 10;
-	my_motion.frq = 3;
+//	my_motion.dlt_x = 1;
+//	my_motion.dlt_y = 1;
+//	my_motion.dlt_z = 10;
+//	my_motion.frq = 3;
 	printk(KERN_ERR "CHECKING MOTIONS\n");
-	if (check_motions(&acceleration_events, my_motion))
-		printk(KERN_ERR "DETECTED MOTION FULLFILLED\n");
+
+	list_for_each_entry(mtn, &motion_events, list) {
+		if (check_for_motion(&acceleration_events, mtn->motion))
+			printk(KERN_ERR "DETECTED MOTION FULLFILLED\n");
+	}
 	spin_unlock(&acceleration_events_lock);	
 	return 0;
 
