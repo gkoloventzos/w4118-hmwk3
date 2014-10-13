@@ -25,31 +25,18 @@ static LIST_HEAD(acceleration_events);
 static DEFINE_SPINLOCK(acceleration_events_lock);
 
 /*
- * Define the motion.
- * The motion give the baseline for an EVENT.
- */
-struct acc_motion {
-
-	unsigned int dlt_x; /* +/- around X-axis */
-	unsigned int dlt_y; /* +/- around Y-axis */
-	unsigned int dlt_z; /* +/- around Z-axis */
-
-	unsigned int frq;   /* Number of samples that satisfies:
-		sum_each_sample(dlt_x + dlt_y + dlt_z) > NOISE */
-};
-
-/*
  * Definition of event list
  */
 struct motion_event {
 	unsigned int event_id;
 	struct acc_motion motion;
-	unsigned int happened;
-	wait_queue_head_t my_queue;
+	wait_queue_head_t waiting_procs;
+	struct mutex waiting_procs_lock;
 	struct list_head list;
 };
 
-LIST_HEAD(motions_list);
+LIST_HEAD(motion_events);
+static DEFINE_SPINLOCK(motion_events_lock);
 
 
 //static DEFINE_SPINLOCK(mvmt_evt_lock);
@@ -63,13 +50,13 @@ struct motion_event *event_search(int event_id, struct list_head *head)
 	struct list_head *position;
 	struct motion_event *event;
 
-	spin_lock(&motions_list_lock);
+	spin_lock(&motion_events_lock);
 	list_for_each(position, head) {
 		event = list_entry(position, struct motion_event, list);
 		if (event->event_id == event_id)
 			return event;
 	}
-	spin_unlock(&motions_list_lock);
+	spin_unlock(&motion_events_lock);
 	return NULL;
 }
 
@@ -111,8 +98,8 @@ int sys_accevt_create(struct acc_motion __user *acceleration)
 	}
 
 	spin_lock(&motions_list_lock);
-	if (!list_empty(&motions_list)) {
-		num_events = motion_exists(&motions_list, acceleration);
+	if (!list_empty(&motion_events)) {
+		num_events = motion_exists(&motion_events, acceleration);
 	}
 	if (num_events == -1) {
 		errno = num_events;
@@ -120,10 +107,10 @@ int sys_accevt_create(struct acc_motion __user *acceleration)
 	}
 	new_event->event_id = ++num_events;
 	new_event->motion = *acceleration;
-	new_event->happened = 0;
-	init_waitqueue_head(&(new_event->my_queue));
+	//new_event->happened = 0;
+	init_waitqueue_head(&(new_event->waiting_procs));
 	//LIST_HEAD_INIT(new_event->list);
-	list_add(&(new_event->list), &motions_list);
+	list_add(&(new_event->list), &motion_events);
 	spin_unlock(&motions_list_lock);
 	return num_events;
 
@@ -138,7 +125,7 @@ error:
 int sys_accevt_wait(int event_id)
 {
 	struct motion_event *evt;
-	evt = event_search(event_id, &motions_list);
+	evt = event_search(event_id, &motion_events);
 	if (evt == NULL)
 		return -ENODATA; //NOT CORRECT ERROR
 	return 0;
@@ -253,7 +240,7 @@ error:
 int sys_accevt_destroy(int event_id)
 {
 	struct motion_event *event;
-	event = event_search(event_id, &motions_list);
+	event = event_search(event_id, &motion_events);
 	if (event != NULL) {
 		//remove queue?
 		list_del(&(event->list));

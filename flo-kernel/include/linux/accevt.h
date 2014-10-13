@@ -12,7 +12,6 @@
 /*Define the window*/
 #define WINDOW 20
 
-
 /*
  * Define the motion.
  * The motion give the baseline for an EVENT.
@@ -26,19 +25,6 @@ struct acc_motion {
 	unsigned int frq;   /* Number of samples that satisfies:
 		sum_each_sample(dlt_x + dlt_y + dlt_z) > NOISE */
 };
-
-/*
- * Definition of event list
- */
-struct motion_event {
-	unsigned int event_id;
-	struct acc_motion motion;
-	unsigned int happened;
-	wait_queue_head_t my_queue;
-	struct list_head list;
-};
-
-LIST_HEAD(motions_list);
 
 /* Create an event based on motion.
  * If frq exceeds WINDOW, cap frq at WINDOW.
