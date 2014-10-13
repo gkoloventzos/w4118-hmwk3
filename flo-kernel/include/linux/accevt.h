@@ -45,7 +45,6 @@ struct motion_event {
  * Return an event_id on success and the appropriate error on failure.
  * system call number 379
  */
-
 int accevt_create(struct acc_motion __user *acceleration);
 
 /* Block a process on an event.
@@ -54,7 +53,6 @@ int accevt_create(struct acc_motion __user *acceleration);
  * Return 0 on success and the appropriate error` on failure.
  * system call number 380
  */
-
 int accevt_wait(int event_id);
 
 
@@ -66,13 +64,11 @@ int accevt_wait(int event_id);
  * Return 0 success and the appropriate error on failure.
  * system call number 381
  */
-
 int accevt_signal(struct dev_acceleration __user *acceleration);
 
 /* Destroy an acceleration event using the event_id,
  * Return 0 on success and the appropriate error on failure.
  * system call number 382
  */
-
 int accevt_destroy(int event_id);
 #endif

@@ -37,6 +37,7 @@
 
 
 #define __NR_set_acceleration 378
+#define __NR_accevt_signal 381
 
 
 /* set to 1 for a bit of debug output */
@@ -85,7 +86,12 @@ static int poll_sensor_data(struct sensors_poll_device_t *sensors_device)
 		acceleration.z = (int)(buffer[i].acceleration.z*100);
 		DBG("Acceleration: x= %d y= %d z= %d\n",
 		    acceleration.x, acceleration.y, acceleration.z);
-		err = syscall(378, &acceleration);
+
+#ifdef _MOTION_SUPPORT
+		err = syscall(__NR_accevt_signal, &acceleration);
+#else
+		err = syscall(__NR_set_acceleration, &acceleration);
+#endif
 		if (err)
 			goto error;
 	}
