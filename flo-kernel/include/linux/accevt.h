@@ -12,8 +12,6 @@
 /*Define the window*/
 #define WINDOW 20
 
-struct list_head events_list;
-LIST_HEAD(events_list);
 
 /*
  * Define the motion.
@@ -39,6 +37,8 @@ struct motion_event {
 	wait_queue_head_t my_queue;
 	struct list_head list;
 };
+
+LIST_HEAD(motions_list);
 
 /* Create an event based on motion.
  * If frq exceeds WINDOW, cap frq at WINDOW.
