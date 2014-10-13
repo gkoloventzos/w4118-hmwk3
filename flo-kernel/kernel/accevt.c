@@ -22,10 +22,22 @@ struct acceleration_event {
 	struct list_head list;
 };
 static LIST_HEAD(acceleration_events);
-
-
-
 static DEFINE_SPINLOCK(acceleration_events_lock);
+
+/*
+ * Definition of event list
+ */
+struct motion_event {
+	unsigned int event_id;
+	struct acc_motion motion;
+	wait_queue_head_t waiting_procs;
+	struct mutex waiting_procs_lock;
+	struct list_head list;
+};
+
+LIST_HEAD(motion_events);
+static DEFINE_SPINLOCK(motion_events_lock);
+
 
 //static DEFINE_SPINLOCK(mvmt_evt_lock);
 /*
@@ -38,13 +50,13 @@ struct motion_event *event_search(int event_id, struct list_head *head)
 	struct list_head *position;
 	struct motion_event *event;
 
-	spin_lock(&motions_list_lock);
+	spin_lock(&motion_events_lock);
 	list_for_each(position, head) {
 		event = list_entry(position, struct motion_event, list);
 		if (event->event_id == event_id)
 			return event;
 	}
-	spin_unlock(&motions_list_lock);
+	spin_unlock(&motion_events_lock);
 	return NULL;
 }
 
@@ -73,10 +85,11 @@ static int motion_exists(struct list_head *head, struct acc_motion *new)
 
 int sys_accevt_create(struct acc_motion __user *acceleration)
 {
-	int num_events = 0;
 	struct motion_event *new_event;
+	static int num_events = 0;
 	unsigned int correct_frq;
 	int errno;
+	int rval;
 
 	correct_frq = MIN(acceleration->frq, WINDOW);
 	new_event = kmalloc(sizeof(struct motion_event), GFP_KERNEL);
@@ -84,26 +97,21 @@ int sys_accevt_create(struct acc_motion __user *acceleration)
 		errno = -ENOMEM;
 		goto error;
 	}
-
+	rval = copy_from_user(&(new_event->motion),
+			      acceleration,
+			      sizeof(struct acc_motion));
+	if (rval < 0){
+		errno = -EFAULT;
+		goto error;
+	}
+	init_waitqueue_head(&(new_event->waiting_procs));
 	spin_lock(&motions_list_lock);
-	if (!list_empty(&motions_list)) {
-		num_events = motion_exists(&motions_list, acceleration);
-	}
-	if (num_events == -1) {
-		errno = num_events;
-		goto exists;
-	}
 	new_event->event_id = ++num_events;
-	new_event->motion = *acceleration;
-	new_event->happened = 0;
-	init_waitqueue_head(&(new_event->my_queue));
-	//LIST_HEAD_INIT(new_event->list);
-	list_add(&(new_event->list), &motions_list);
+	list_add(&(new_event->list), &motion_events);
 	spin_unlock(&motions_list_lock);
 	return num_events;
 
 exists:
-	spin_unlock(&motions_list_lock);
 	kfree(new_event);
 error:
 	return errno;
@@ -113,7 +121,7 @@ error:
 int sys_accevt_wait(int event_id)
 {
 	struct motion_event *evt;
-	evt = event_search(event_id, &motions_list);
+	evt = event_search(event_id, &motion_events);
 	if (evt == NULL)
 		return -ENODATA; //NOT CORRECT ERROR
 	return 0;
@@ -159,6 +167,7 @@ int check_motions(struct list_head *acceleration_events,
 		return 0;
 	if (list_empty(acceleration_events->next))
 		return 0;
+
 	prv_acc_evt = list_first_entry(acceleration_events, struct acceleration_event, list);
 	match = 0;
 	iter = 0;
@@ -207,7 +216,7 @@ int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 
 	my_motion.dlt_x = 1;
 	my_motion.dlt_y = 1;
-	my_motion.dlt_z = 5;
+	my_motion.dlt_z = 10;
 	my_motion.frq = 3;
 	printk(KERN_ERR "CHECKING MOTIONS\n");
 	if (check_motions(&acceleration_events, my_motion))
@@ -227,7 +236,7 @@ error:
 int sys_accevt_destroy(int event_id)
 {
 	struct motion_event *event;
-	event = event_search(event_id, &motions_list);
+	event = event_search(event_id, &motion_events);
 	if (event != NULL) {
 		//remove queue?
 		list_del(&(event->list));
