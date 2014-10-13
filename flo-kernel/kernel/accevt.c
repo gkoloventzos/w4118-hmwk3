@@ -85,10 +85,11 @@ static int motion_exists(struct list_head *head, struct acc_motion *new)
 
 int sys_accevt_create(struct acc_motion __user *acceleration)
 {
-	int num_events = 0;
 	struct motion_event *new_event;
+	static int num_events = 0;
 	unsigned int correct_frq;
 	int errno;
+	int rval;
 
 	correct_frq = MIN(acceleration->frq, WINDOW);
 	new_event = kmalloc(sizeof(struct motion_event), GFP_KERNEL);
@@ -96,26 +97,21 @@ int sys_accevt_create(struct acc_motion __user *acceleration)
 		errno = -ENOMEM;
 		goto error;
 	}
-
-	spin_lock(&motions_list_lock);
-	if (!list_empty(&motion_events)) {
-		num_events = motion_exists(&motion_events, acceleration);
+	rval = copy_from_user(&(new_event->motion),
+			      acceleration,
+			      sizeof(struct acc_motion));
+	if (rval < 0){
+		errno = -EFAULT;
+		goto error;
 	}
-	if (num_events == -1) {
-		errno = num_events;
-		goto exists;
-	}
-	new_event->event_id = ++num_events;
-	new_event->motion = *acceleration;
-	//new_event->happened = 0;
 	init_waitqueue_head(&(new_event->waiting_procs));
-	//LIST_HEAD_INIT(new_event->list);
+	spin_lock(&motions_list_lock);
+	new_event->event_id = ++num_events;
 	list_add(&(new_event->list), &motion_events);
 	spin_unlock(&motions_list_lock);
 	return num_events;
 
 exists:
-	spin_unlock(&motions_list_lock);
 	kfree(new_event);
 error:
 	return errno;
