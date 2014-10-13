@@ -7,4 +7,11 @@ struct dev_acceleration {
 	int z;
 };
 
+struct acc_motion {
+	unsigned int dlt_x; /* +/- around X-axis */
+	unsigned int dlt_y; /* +/- around Y-axis */
+	unsigned int dlt_z; /* +/- around Z-axis */
+	unsigned int frq;
+};
+
 #endif
