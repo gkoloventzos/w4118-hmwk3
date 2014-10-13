@@ -129,10 +129,11 @@ static int matching_motion(struct dev_acceleration first,
 			struct acc_motion motion)
 {
 
-//	printk(KERN_ERR "checking motion: %d %d %d, %d %d %d NOISE:%d\n",  first.x, first.y, first.z, last.x, last.y,last.z, NOISE);
 	if ( abs(last.x - first.x) +
 	     abs(last.y - first.y) +
 	     abs(last.z - first.z) > NOISE ) {
+		printk(KERN_ERR "EXCEEDS NOISE\n");
+		printk(KERN_ERR "motion: %d %d %d, %d %d %d NOISE:%d\n",  first.x, first.y, first.z, last.x, last.y,last.z, NOISE);
 		if ( abs(last.x - first.x) >= motion.dlt_x &&
 		     abs(last.y - first.y) >= motion.dlt_y &&
 		     abs(last.z - first.z) >= motion.dlt_z) {
@@ -206,14 +207,14 @@ int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 
 	my_motion.dlt_x = 1;
 	my_motion.dlt_y = 1;
-	my_motion.dlt_z = 50;
-	my_motion.frq = 5;
+	my_motion.dlt_z = 5;
+	my_motion.frq = 3;
+	printk(KERN_ERR "CHECKING MOTIONS\n");
 	if (check_motions(&acceleration_events, my_motion))
 		printk(KERN_ERR "DETECTED MOTION FULLFILLED\n");
 	spin_unlock(&acceleration_events_lock);	
 	return 0;
 
-	printk(KERN_ERR "ERRRRRRRRRRRRRRRRROR\n");
 error_free_mem_unlock:
 	spin_unlock(&acceleration_events_lock);
 error_free_mem:
