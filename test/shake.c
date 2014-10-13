@@ -29,28 +29,7 @@ void print_motion(int child, int dir)
  */
 void listen_to(int child, int dir)
 {
-	struct acc_motion motion;
 	int ret;
-
-	if (dir == VERTICAL) {
-		motion.dlt_x = 10;
-		motion.dlt_y = 10;
-		motion.dlt_z = 100;
-		motion.frq   = 100;
-	} else if (dir == HORIZONTAL) {
-		motion.dlt_x = 100;
-		motion.dlt_y = 100;
-		motion.dlt_z = 10;
-		motion.frq   = 100;
-	} else if (dir == BOTHDIR) {
-		motion.dlt_x = 100;
-		motion.dlt_y = 100;
-		motion.dlt_z = 100;
-		motion.frq   = 100;
-	}
-
-	/* accevt_create */
-	syscall(379, motion);
 
 	while (1) {
 		/* accevt_wait */
@@ -86,11 +65,15 @@ int main(int argc, char **argv)
 	int ret;
 	pid_t pid;
 	int status;
+	int mids[3];
 	struct timeval start;
+	struct acc_motion bothdir;
+	struct acc_motion vertical;
+	struct acc_motion horizontal;
 	struct dev_acceleration acceleration;
 
 	if (argc == 2) {
-		n = (int) argv[1];
+		n = atoi(argv[1]);
 	} else {
 		printf("shake.c: invalid number of arguments\n");
 		printf("usage:\n");
@@ -104,6 +87,29 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
+	/* CREATE MOTIONS
+	 * move this code some place else
+	 */
+	vertical.dlt_x = 10;
+	vertical.dlt_y = 10;
+	vertical.dlt_z = 100;
+	vertical.frq   = 100;
+
+	horizontal.dlt_x = 100;
+	horizontal.dlt_y = 100;
+	horizontal.dlt_z = 10;
+	horizontal.frq   = 100;
+
+	bothdir.dlt_x = 100;
+	bothdir.dlt_y = 100;
+	bothdir.dlt_z = 100;
+	bothdir.frq   = 100;
+
+	/* accevt_create */
+	mids[0] = syscall(379, vertical);
+	mids[1] = syscall(379, horizontal);
+	mids[2] = syscall(379, bothdir);
+
 	for (i = 0; i < n; i++) {
 		pid = fork();
 
@@ -111,7 +117,7 @@ int main(int argc, char **argv)
 			perror("fork");
 			exit(EXIT_FAILURE);
 		} else if (!pid) {
-			listen_to(i, i % 3);
+			listen_to(i, mids[i % 3]);
 			exit(EXIT_SUCCESS);
 		}
 	}
@@ -125,14 +131,10 @@ int main(int argc, char **argv)
 
 			return 0;
 		}
-
-		acceleration.x = 0; /* TODO: get acc x from device */
-		acceleration.y = 0; /* TODO: get acc y from device */
-		acceleration.z = 0; /* TODO: get acc z from device */
-
-		/* accevt_signal */
-		syscall(381, acceleration);
 	}
+
+	while(wait(NULL) > 0)
+		;
 
 	return 0;
 }
