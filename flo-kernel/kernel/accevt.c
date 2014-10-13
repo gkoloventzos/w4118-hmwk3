@@ -16,13 +16,22 @@
 
 static DEFINE_SPINLOCK(motions_list_lock);
 
+
 struct acceleration_event {
 	struct dev_acceleration dev_acc;
 	struct list_head list;
 };
-
 static LIST_HEAD(acceleration_events);
-static DEFINE_SPINLOCK(acc_evt_lock);
+
+struct my_event {
+	int i;
+	struct list_head list;
+};
+static LIST_HEAD(my_events);
+
+
+
+static DEFINE_SPINLOCK(acceleration_events_lock);
 
 //static DEFINE_SPINLOCK(mvmt_evt_lock);
 /*
@@ -142,28 +151,22 @@ static int match_motion(struct dev_acceleration first,
  * from the movement data currently buffered into the kernel
  */
 static
-int motion_fullfilled(struct kfifo *sensor_events, struct acc_motion motion)
+int motion_fullfilled(struct list_head acceleration_events, struct acc_motion motion)
 {
 	struct dev_acceleration cur_acc, prv_acc;
 	unsigned int kfifo_size;
 	unsigned int events;
 	int match, i;
 
-	kfifo_size = kfifo_len(sensor_events);
-	events = kfifo_size / sizeof(struct dev_acceleration);
-	if (!events) {
-		 //kfifo_out_peek(sensor_events, &cur_acc, sizeof(cur_acc), 0);
-		 //memcpy(&prv_acc, &cur_acc, sizeof(cur_acc));
-	}
-	match = 0;
-	for (i = 1; i < events; i++) {
-		//kfifo_out_peek(sensor_events, &cur_acc, sizeof(cur_acc), i);
-		/*sub(&prv_acc, &cur_acc);*/
-		//match += match_motion(prv_acc, cur_acc, motion);
-		//memcpy(&prv_acc, &cur_acc, sizeof(cur_acc));
-	}
-	if ( match > motion.frq )
-		return 1;
+//	list_for_each_entry(pacc_evt, &acceleration_events, list) {
+//		printk(KERN_ERR "kfifo: %d %d\n", pacc_evt->dev_acc.x, pacc_evt->dev_acc.y);
+//		//kfifo_out_peek(sensor_events, &cur_acc, sizeof(cur_acc), i);
+//		/*sub(&prv_acc, &cur_acc);*/
+//		//match += match_motion(prv_acc, cur_acc, motion);
+//		//memcpy(&prv_acc, &cur_acc, sizeof(cur_acc));
+//	}
+//	if ( match > motion.frq )
+//		return 1;
 	return 0;
 }
 
@@ -172,10 +175,10 @@ int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 
 	int rval;
 	int errno;
+	static int events = 0;
 	struct acc_motion my_motion;
 	struct acceleration_event *acc_evt;
-	/*static int should_init = 1;*/
-	static int events = 0;
+	struct acceleration_event *pacc_evt;
 
 	acc_evt = kmalloc(sizeof(struct acceleration_event), GFP_KERNEL);
 	if (!acc_evt) {
@@ -190,39 +193,29 @@ int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 		goto error_free_mem;
 	}
 
-	spin_lock(&acc_evt_lock);
-	if (events == WINDOW + 1) {
-		printk(KERN_ERR "kfifo: dell\n");
+	spin_lock(&acceleration_events_lock);
+	if (events == WINDOW + 1)
 		list_del(acceleration_events.next);
-	} else {
+	else
 		events++;
-		list_add_tail(&(acc_evt->list), &acceleration_events);
-	}
-	printk(KERN_ERR "kfifo: %d %d\n", acc_evt->dev_acc.x, acc_evt->dev_acc.y);
+	list_add_tail(&(acc_evt->list), &acceleration_events);
 
-	list_for_each_entry(acc_evt, &acceleration_events, list)
-		printk(KERN_ERR "kfifo: %d %d\n", acc_evt->dev_acc.x, acc_evt->dev_acc.y);
-	
-	printk(KERN_ERR "kfifo: our motion\n");
 	my_motion.dlt_x = 10;
 	my_motion.dlt_y = 10;
 	my_motion.dlt_z = 10;
 	my_motion.frq = 2;
-	printk(KERN_ERR "kfifo: THIS IS THE END\n");
-//	if (motion_fullfilled(sens_evt, my_motion))
-//		printk(KERN_ERR "DETECTED MOTION FULLFILLED\n");
-	spin_unlock(&acc_evt_lock);	
-	kfree(acc_evt);
+	if (motion_fullfilled(acceleration_events, my_motion))
+		printk(KERN_ERR "DETECTED MOTION FULLFILLED\n");
+	spin_unlock(&acceleration_events_lock);	
 	return 0;
 
 	printk(KERN_ERR "ERRRRRRRRRRRRRRRRROR\n");
 error_free_mem_unlock:
-	spin_unlock(&acc_evt_lock);
+	spin_unlock(&acceleration_events_lock);
 error_free_mem:
 	kfree(acc_evt);
 error:
 	return errno;
-
 }
 
 
