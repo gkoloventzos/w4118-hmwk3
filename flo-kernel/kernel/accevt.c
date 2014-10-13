@@ -128,6 +128,8 @@ static int matching_motion(struct dev_acceleration first,
 			struct dev_acceleration last,
 			struct acc_motion motion)
 {
+
+//	printk(KERN_ERR "checking motion: %d %d %d, %d %d %d NOISE:%d\n",  first.x, first.y, first.z, last.x, last.y,last.z, NOISE);
 	if ( abs(last.x - first.x) +
 	     abs(last.y - first.y) +
 	     abs(last.z - first.z) > NOISE ) {
@@ -145,21 +147,31 @@ static int matching_motion(struct dev_acceleration first,
  * from the movement data currently buffered into the kernel
  */
 static
-int check_motions(struct list_head acceleration_events,
+int check_motions(struct list_head *acceleration_events,
 		  struct acc_motion motion)
 {
-	struct acceleration_event *acc_evt;
+	struct acceleration_event *cur_acc_evt, *prv_acc_evt;
 	int match;
+	int iter;
 
-	list_for_each_entry(acc_evt, &acceleration_events, list) {
-		printk(KERN_ERR "kfifo: %d %d\n", acc_evt->dev_acc.x, acc_evt->dev_acc.y);
-//		//kfifo_out_peek(sensor_events, &cur_acc, sizeof(cur_acc), i);
-//		/*sub(&prv_acc, &cur_acc);*/
-//		//match += match_motion(prv_acc, cur_acc, motion);
-//		//memcpy(&prv_acc, &cur_acc, sizeof(cur_acc));
+	if (list_empty(acceleration_events))
+		return 0;
+	if (list_empty(acceleration_events->next))
+		return 0;
+	prv_acc_evt = list_first_entry(acceleration_events, struct acceleration_event, list);
+	match = 0;
+	iter = 0;
+	list_for_each_entry(cur_acc_evt, acceleration_events, list) {
+		if (!iter){
+			iter++;
+			prv_acc_evt = cur_acc_evt;
+			continue;
+		}
+		match += matching_motion(prv_acc_evt->dev_acc, cur_acc_evt->dev_acc, motion);
+		prv_acc_evt = cur_acc_evt;
 	}
-//	if ( match > motion.frq )
-//		return 1;
+	if ( match > motion.frq )
+		return 1;
 	return 0;
 }
 
@@ -192,11 +204,11 @@ int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 		events++;
 	list_add_tail(&(acc_evt->list), &acceleration_events);
 
-	my_motion.dlt_x = 10;
-	my_motion.dlt_y = 10;
-	my_motion.dlt_z = 10;
-	my_motion.frq = 2;
-	if (check_motions(acceleration_events, my_motion))
+	my_motion.dlt_x = 1;
+	my_motion.dlt_y = 1;
+	my_motion.dlt_z = 50;
+	my_motion.frq = 5;
+	if (check_motions(&acceleration_events, my_motion))
 		printk(KERN_ERR "DETECTED MOTION FULLFILLED\n");
 	spin_unlock(&acceleration_events_lock);	
 	return 0;
