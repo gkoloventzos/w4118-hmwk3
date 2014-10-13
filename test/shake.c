@@ -57,8 +57,7 @@ void listen_to(int child, int dir)
 		ret = syscall(380, dir);
 		if (ret != 0)
 			return;
-		else
-			print_motion(child, dir);
+		print_motion(child, dir);
 	}
 }
 
@@ -66,7 +65,8 @@ void listen_to(int child, int dir)
  * returns number of seconds that
  * passed from the 'start' until present
  */
-int run_time(struct timeval start) {
+int run_time(struct timeval start)
+{
 	struct timeval end;
 	int ret;
 
