@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include "acceleration.h"
 
 #define VERTICAL	0
@@ -64,13 +65,11 @@ int main(int argc, char **argv)
 	int n;
 	int ret;
 	pid_t pid;
-	int status;
 	int mids[3];
 	struct timeval start;
 	struct acc_motion bothdir;
 	struct acc_motion vertical;
 	struct acc_motion horizontal;
-	struct dev_acceleration acceleration;
 
 	if (argc == 2) {
 		n = atoi(argv[1]);

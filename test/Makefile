@@ -3,8 +3,8 @@ LD := arm-none-linux-gnueabi-gcc
 CFLAGS := -g -Wall -Werror
 LDFLAGS := -static
 
-OBJECTS := set_acceleration.c
-EXE := set_acc
+OBJECTS := shake.c
+EXE := shake
 
 all : $(OBJECTS)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $(EXE) $(OBJECTS)
