@@ -138,14 +138,15 @@ static int matching_acc(struct dev_acceleration first,
 			struct acc_motion motion)
 {
 
+//	printk(KERN_ERR "MATCHIN_ACC INVOKED\n");
 	if ( abs(last.x - first.x) +
 	     abs(last.y - first.y) +
 	     abs(last.z - first.z) > NOISE ) {
-		printk(KERN_ERR "EXCEEDS NOISE\n");
-		printk(KERN_ERR "motion: %d %d %d, %d %d %d NOISE:%d\n",  first.x, first.y, first.z, last.x, last.y,last.z, NOISE);
+//		printk(KERN_ERR "EXCEEDS NOISE\n");
 		if ( abs(last.x - first.x) >= motion.dlt_x &&
 		     abs(last.y - first.y) >= motion.dlt_y &&
 		     abs(last.z - first.z) >= motion.dlt_z) {
+//			printk(KERN_ERR "MATCHING motion: %d %d %d, %d %d %d NOISE:%d\n",  first.x, first.y, first.z, last.x, last.y,last.z, NOISE);
 			return 1;
 		}
 	}
@@ -175,13 +176,13 @@ int check_for_motion(struct list_head *acceleration_events,
 	list_for_each_entry(cur_acc_evt, acceleration_events, list) {
 		if (!iter) {
 			iter++;
-			prv_acc_evt = cur_acc_evt;
+			memcpy(prv_acc_evt, cur_acc_evt, sizeof(struct acceleration_event));
 			continue;
 		}
 		match += matching_acc(prv_acc_evt->dev_acc, cur_acc_evt->dev_acc, motion);
-		prv_acc_evt = cur_acc_evt;
+		memcpy(prv_acc_evt, cur_acc_evt, sizeof(struct acceleration_event));
 	}
-	if (match > motion.frq)
+	if (match >= motion.frq)
 		return 1;
 	return 0;
 }
@@ -221,7 +222,8 @@ int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 //	my_motion.frq = 3;
 	printk(KERN_ERR "CHECKING MOTIONS\n");
 
-	list_for_each_entry(mtn, &motion_events, list) {
+	list_for_each_entry(mtn, &motion_events, list) {		
+//		printk(KERN_ERR "mtn :%d %d %d\n", mtn->motion.dlt_x, mtn->motion.dlt_y, mtn->motion.dlt_z);
 		if (check_for_motion(&acceleration_events, mtn->motion))
 			printk(KERN_ERR "DETECTED MOTION FULLFILLED\n");
 	}
@@ -233,7 +235,7 @@ error_free_mem_unlock:
 error_free_mem:
 	kfree(acc_evt);
 error:
-	return errno;
+	return errno;i
 }
 
 
@@ -247,3 +249,5 @@ int sys_accevt_destroy(int event_id)
 	}
 	return -ENODATA; //NOT CORRECT ERROR
 }
+
+
