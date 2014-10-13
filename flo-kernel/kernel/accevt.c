@@ -39,26 +39,26 @@ LIST_HEAD(motion_events);
 static DEFINE_SPINLOCK(motion_events_lock);
 
 
-//static DEFINE_SPINLOCK(mvmt_evt_lock);
-/*
- * Search in motions_list to find and return the motion with event_id.
- * Lock must be free before entering in this function.
- */
-static
-struct motion_event *event_search(int event_id, struct list_head *head)
+static inline
+struct motion_event* get_n_motion_event(struct list_head *motions, int n)
 {
-	struct list_head *position;
-	struct motion_event *event;
+	struct motion_event *mtn;
 
 	spin_lock(&motion_events_lock);
-	list_for_each(position, head) {
-		event = list_entry(position, struct motion_event, list);
-		if (event->event_id == event_id)
-			return event;
+	if(list_empty(motions)) {
+		spin_unlock(&motion_events_lock);
+		return NULL;
+	}
+	list_for_each_entry(mtn, motions, list) {
+		if (!--n) {
+			spin_unlock(&motion_events_lock);
+			return mtn;
+		}
 	}
 	spin_unlock(&motion_events_lock);
 	return NULL;
 }
+
 
 /*
  * Traverse the motions_list adn returns the number of events.
@@ -112,8 +112,6 @@ int sys_accevt_create(struct acc_motion __user *acceleration)
 	printk( KERN_ERR "Created ecvent eith id:%d\n", num_events);
 	return num_events;
 
-exists:
-	kfree(new_event);
 error:
 	return errno;
 
@@ -122,9 +120,11 @@ error:
 int sys_accevt_wait(int event_id)
 {
 	struct motion_event *evt;
-	evt = event_search(event_id, &motion_events);
+
+	evt = get_n_motion_event(&motion_events, event_id);
 	if (evt == NULL)
 		return -ENODATA; //NOT CORRECT ERROR
+	return -1;
 	return 0;
 	/**/
 }
@@ -216,17 +216,32 @@ int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 		events++;
 	list_add_tail(&(acc_evt->list), &acceleration_events);
 
-//	my_motion.dlt_x = 1;
+	//struct motion_event *bla = list_first_entry(&motion_events,struct motion_event, list);
+	//if (bla)
+	//	printk(KERN_ERR "%d %d %d %d", bla->motion.dlt_x,  bla->motion.dlt_y, bla->motion.dlt_z, bla->motion.frq);
+
+	struct motion_event *e2 = get_n_motion_event(&motion_events, 25);
+	if (e2)
+		printk(KERN_ERR "%d %d %d %d", e2->motion.dlt_x,  e2->motion.dlt_y, e2->motion.dlt_z, e2->motion.frq);
+	else
+		printk(KERN_ERR "NNNNOOOP\n");
+	/*if (!e1)
+	struct motion_event *e2 = get_n_motion_event(&motion_events, 2);
+	if (!e2)
+		printk(KERN_ERR "%d %d %d %d", e2->motion.dlt_x,  e2->motion.dlt_y, e2->motion.dlt_z, e2->motion.frq);*/
+
+	//	my_motion.dlt_x = 1;
 //	my_motion.dlt_y = 1;
 //	my_motion.dlt_z = 10;
 //	my_motion.frq = 3;
 	printk(KERN_ERR "CHECKING MOTIONS\n");
 
-	list_for_each_entry(mtn, &motion_events, list) {		
+	list_for_each_entry(mtn, &motion_events, list) {
 //		printk(KERN_ERR "mtn :%d %d %d\n", mtn->motion.dlt_x, mtn->motion.dlt_y, mtn->motion.dlt_z);
 		if (check_for_motion(&acceleration_events, mtn->motion))
 			printk(KERN_ERR "DETECTED MOTION FULLFILLED\n");
 	}
+	
 	spin_unlock(&acceleration_events_lock);	
 	return 0;
 
@@ -234,18 +249,21 @@ error_free_mem_unlock:
 	spin_unlock(&acceleration_events_lock);
 error_free_mem:
 	kfree(acc_evt);
-error:
-	return errno;i
+	error:
+	return errno;
 }
 
 
 int sys_accevt_destroy(int event_id)
 {
-	struct motion_event *event;
-	event = event_search(event_id, &motion_events);
-	if (event != NULL) {
+	struct motion_event *evt;
+	
+
+	evt = get_n_motion_event(&motion_events, event_id);
+	if (evt != NULL) {
 		//remove queue?
-		list_del(&(event->list));
+		list_del(&(evt->list));
+		kfree(evt);
 	}
 	return -ENODATA; //NOT CORRECT ERROR
 }
