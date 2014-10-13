@@ -13,17 +13,16 @@
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
-static LIST_HEAD(acc_evt);
-static DEFINE_SPINLOCK(acc_evt_lock);
 
 static DEFINE_SPINLOCK(motions_list_lock);
-#define window (WINDOW % 2 ? WINDOW + 1 : WINDOW)
 
-static DECLARE_KFIFO(sens_evt, int, 10);
-INIT_KFIFO(sens_evt);
-static DEFINE_SPINLOCK(sens_evt_lock);
+struct acceleration_event {
+	struct dev_acceleration dev_acc;
+	struct list_head list;
+};
+static LIST_HEAD(acceleration_events);
+static DEFINE_SPINLOCK(acceleration_event_lock);
 
-INIT_KFIFO(mvmt_evt);
 //static DEFINE_SPINLOCK(mvmt_evt_lock);
 /*
  * Search in motions_list to find and return the motion with event_id.
@@ -152,52 +151,64 @@ int motion_fullfilled(struct kfifo *sensor_events, struct acc_motion motion)
 	return 0;
 }
 
-
 int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 {
 
+	int rval;
 	int errno;
-	unsigned int rbytes;
-	struct dev_acceleration tmp_accel, trash;
-
-	if (copy_from_user(&tmp_accel, acceleration, sizeof(tmp_accel)))
-		return -EFAULT;
-
-	spin_lock(acc_evt_lock);
-	if (kfifo_is_full(sens_evt)) {
-		rbytes = kfifo_out(&sens_evt, &thrash, sizeof(tmp_accel));
-		if (rbytes!= sizeof(tmp_accel)) {
-			errno = -ENOMEM;
-			goto unlock_error;
-		}
-	}
-	bytes_written = kfifo_in(&sens_evt, &tmp_accel, sizeof(tmp_accel));
-	if (rbytes != sizeof(tmp_accel)){
-		errno = -ENOMEM;
-		goto unlock_error;
-	}
-/*	spin_lock(&eventslist_lock);
-	list_for_each(position, &events_list) {
-		event = list_entry(position, struct motion_event, list);
-*/	
 	struct acc_motion my_motion;
+	struct acceleration_event *acc_evt;
+	static int should_init = 1;
+	static int events = 0;
+
+	acc_evt = kmalloc(sizeof(struct acceleration_event), GFP_KERNEL);
+	if (!acc_evt) {
+		errno = -ENOMEM;
+		goto error;
+	}
+	rval = copy_from_user(&(acc_evt->dev_acc),
+			      acceleration,
+			      sizeof(struct dev_acceleration)))
+	if (rval < 0) {
+		errno = -EFAULT;
+		goto error_free_mem;
+	}
+
+	spin_lock(&acc_evt_lock);
+	if (events == WINDOW + 1) {
+		printk(KERN_ERR "kfifo: dell\n");
+		list_del(acceleration_events.next);
+	} else {
+		events++;
+		list_insert_tail(&(acc_evt->list), &acceleration_events);
+	}
+	printk(KERN_ERR "kfifo: %d %d\n", acc_evt->dev_acc.x, acc_evt->dev_acc.y);
+
+	list_for_each_entry(acc_evt, &acceleration_events, list)
+		printk(KERN_ERR "kfifo: %d %d\n", acc_evt->dev_acc.x, acc_evt->dev_acc.y);
+	
+	printk(KERN_ERR "kfifo: our motion\n");
 	my_motion.dlt_x = 10;
 	my_motion.dlt_y = 10;
 	my_motion.dlt_z = 10;
 	my_motion.frq = 2;
-
-	if (motion_fullfilled(sens_evt, event))
-		print_err("DETECTED MOTION FULLFILLED\n");
-/*	}
-	spin_unlock(acc_evt_lock);
-*/
-	
+	printk(KERN_ERR "kfifo: THIS IS THE END\n");
+//	if (motion_fullfilled(sens_evt, my_motion))
+//		printk(KERN_ERR "DETECTED MOTION FULLFILLED\n");
+	spin_unlock(&acc_evt_lock);	
+	kfree(acc_evt);
 	return 0;
-unlock_error:
-	spin_unlock(sensevents_lock);
+
+	printk(KERN_ERR "ERRRRRRRRRRRRRRRRROR\n");
+error_free_mem_unlock:
+	spin_unlock(&sens_evt_lock);
+error_free_mem:
+	kfree(acc_evt);
+error:
 	return errno;
 
 }
+
 
 int sys_accevt_destroy(int event_id)
 {
