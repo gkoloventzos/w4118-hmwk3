@@ -6,6 +6,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <syscall.h>
 #include "acceleration.h"
 
 #define VERTICAL	0
@@ -25,7 +26,7 @@ void print_motion(int child, int dir)
 	else if (dir == BOTHDIR)
 		printf("%d detected a shake\n", child);
 	else
-		printf("something went wrong...\n");
+		printf("something went wrong...%d\n", dir);
 }
 
 /*
@@ -109,6 +110,7 @@ int main(int argc, char **argv)
 
 	mids[0] = syscall(accevt_create, &vertical);
 	if (mids[0] < 0) {
+		printf("%d\n", mids[0]);
 		perror("accevt_create");
 		exit(EXIT_FAILURE);
 	}
@@ -132,7 +134,7 @@ int main(int argc, char **argv)
 			perror("fork");
 			exit(EXIT_FAILURE);
 		} else if (!pid) {
-			listen_to(i, mids[i % 3]);
+			listen_to(i, mids[i] % 3);
 			exit(EXIT_SUCCESS);
 		}
 	}
@@ -158,7 +160,6 @@ int main(int argc, char **argv)
 			perror("accevt_destroy");
 			exit(EXIT_FAILURE);
 		}
-
 		return 0;
 	}
 
