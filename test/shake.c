@@ -14,10 +14,10 @@
 #define BOTHDIR		2
 
 #define accevt_create	379
-#define accevt_wait		380
+#define accevt_wait	380
 #define accevt_destroy	382
 
-void print_motion(int child, int dir)
+static void print_motion(int child, int dir)
 {
 	if (dir == VERTICAL)
 		printf("%d detected a vertical shake\n", child);
@@ -33,7 +33,7 @@ void print_motion(int child, int dir)
  * listens to specific 'dir' shake motion
  * for the given child
  */
-void listen_to(int child, int dir)
+static void listen_to(int child, int dir)
 {
 	int ret;
 
@@ -41,7 +41,7 @@ void listen_to(int child, int dir)
 		ret = syscall(accevt_wait, dir);
 		if (ret != 0)
 			return;
-		print_motion(child, dir % 3);
+		print_motion(child, dir);
 	}
 }
 
@@ -49,7 +49,7 @@ void listen_to(int child, int dir)
  * returns number of seconds that
  * passed from the 'start' until present
  */
-int run_time(struct timeval start)
+static int run_time(struct timeval start)
 {
 	struct timeval end;
 	int ret;
@@ -78,9 +78,7 @@ int main(int argc, char **argv)
 	if (argc == 2) {
 		n = atoi(argv[1]);
 	} else {
-		printf("shake.c: invalid number of arguments\n");
-		printf("usage:\n");
-		printf("\tshake num_childred\n");
+		printf("Usage: %s <num_childred>\n", *argv);
 		exit(EXIT_FAILURE);
 	}
 
@@ -108,33 +106,31 @@ int main(int argc, char **argv)
 	bothdir.dlt_z = 10;
 	bothdir.frq   = 10;
 
-	mids[0] = syscall(accevt_create, &vertical);
-	if (mids[0] < 0) {
-		printf("%d\n", mids[0]);
+	mids[VERTICAL] = syscall(accevt_create, &vertical);
+	if (mids[VERTICAL] < 0) {
 		perror("accevt_create");
 		exit(EXIT_FAILURE);
 	}
 
-	mids[1] = syscall(accevt_create, &horizontal);
-	if (mids[1] < 0) {
+	mids[HORIZONTAL] = syscall(accevt_create, &horizontal);
+	if (mids[HORIZONTAL] < 0) {
 		perror("accevt_create");
 		exit(EXIT_FAILURE);
 	}
 
-	mids[2] = syscall(accevt_create, &bothdir);
-	if (mids[2] < 0) {
+	mids[BOTHDIR] = syscall(accevt_create, &bothdir);
+	if (mids[BOTHDIR] < 0) {
 		perror("accevt_create");
 		exit(EXIT_FAILURE);
 	}
 
 	for (i = 0; i < n; i++) {
 		pid = fork();
-
 		if (pid < 0) {
 			perror("fork");
 			exit(EXIT_FAILURE);
 		} else if (!pid) {
-			listen_to(i, mids[i]);
+			listen_to(i, mids[i % 3]);
 			exit(EXIT_SUCCESS);
 		}
 	}
