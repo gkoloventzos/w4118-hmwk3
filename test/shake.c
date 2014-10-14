@@ -12,6 +12,10 @@
 #define HORIZONTAL	1
 #define BOTHDIR		2
 
+#define accevt_create	379
+#define accevt_wait		380
+#define accevt_destroy	382
+
 void print_motion(int child, int dir)
 {
 	if (dir == VERTICAL)
@@ -33,8 +37,7 @@ void listen_to(int child, int dir)
 	int ret;
 
 	while (1) {
-		/* accevt_wait */
-		ret = syscall(380, &dir);
+		ret = syscall(accevt_wait, &dir);
 		if (ret != 0)
 			return;
 		print_motion(child, dir);
@@ -104,20 +107,19 @@ int main(int argc, char **argv)
 	bothdir.dlt_z = 100;
 	bothdir.frq   = 100;
 
-	/* accevt_create */
-	mids[0] = syscall(379, &vertical);
+	mids[0] = syscall(accevt_create, &vertical);
 	if (mids[0] < 0) {
 		perror("accevt_create");
 		exit(EXIT_FAILURE);
 	}
 
-	mids[1] = syscall(379, &horizontal);
+	mids[1] = syscall(accevt_create, &horizontal);
 	if (mids[1] < 0) {
 		perror("accevt_create");
 		exit(EXIT_FAILURE);
 	}
 
-	mids[2] = syscall(379, &bothdir);
+	mids[2] = syscall(accevt_create, &bothdir);
 	if (mids[2] < 0) {
 		perror("accevt_create");
 		exit(EXIT_FAILURE);
@@ -139,20 +141,19 @@ int main(int argc, char **argv)
 		if (run_time(start) <= 60)
 			continue;
 
-		/* accevt_destroy */
-		ret = syscall(382, 0);
+		ret = syscall(accevt_destroy, 0);
 		if (ret != 0) {
 			perror("accevt_destroy");
 			exit(EXIT_FAILURE);
 		}
 
-		ret = syscall(382, 1);
+		ret = syscall(accevt_destroy, 1);
 		if (ret != 0) {
 			perror("accevt_destroy");
 			exit(EXIT_FAILURE);
 		}
 
-		ret = syscall(382, 2);
+		ret = syscall(accevt_destroy, 2);
 		if (ret != 0) {
 			perror("accevt_destroy");
 			exit(EXIT_FAILURE);
