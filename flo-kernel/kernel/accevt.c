@@ -258,16 +258,16 @@ int sys_accevt_destroy(int event_id)
 {
 	struct motion_event *evt;
 
-//	evt = get_n_motion_event(&motion_events, event_id);
-//	if (evt != NULL) {
+	evt = get_n_motion_event(&motion_events, event_id);
+	if (evt != NULL) {
 //		//remove queue?
-//		if (evt->waiting_procs_cnt) {
-//			evt->happened = true;
-//			wake_up_interruptible(&(evt->waiting_procs));
-//			printk(KERN_ERR "Waking everything up\n");
-//		}
-//		list_del(&(evt->list));
-//		kfree(evt);
-//	}
+		//if (evt->waiting_procs_cnt) {
+			evt->happened = true;
+			wake_up_interruptible(&(evt->waiting_procs));
+		//	printk(KERN_ERR "Waking everything up\n");
+		//}
+		list_del(&(evt->list));
+		kfree(evt);
+	}
 	return -ENODATA; //NOT CORRECT ERROR
 }
