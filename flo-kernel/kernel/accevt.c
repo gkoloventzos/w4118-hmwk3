@@ -118,15 +118,15 @@ static int matching_acc(struct dev_acceleration first,
 			struct acc_motion motion)
 {
 
-//	printk(KERN_ERR "MATCHIN_ACC INVOKED\n");
+	printk(KERN_ERR "MATCHIN_ACC INVOKED\n");
 	if ( abs(last.x - first.x) +
 	     abs(last.y - first.y) +
 	     abs(last.z - first.z) > NOISE ) {
-//		printk(KERN_ERR "EXCEEDS NOISE\n");
+		printk(KERN_ERR "EXCEEDS NOISE\n");
 		if ( abs(last.x - first.x) >= motion.dlt_x &&
 		     abs(last.y - first.y) >= motion.dlt_y &&
 		     abs(last.z - first.z) >= motion.dlt_z) {
-//			printk(KERN_ERR "MATCHING motion: %d %d %d, %d %d %d NOISE:%d\n",  first.x, first.y, first.z, last.x, last.y,last.z, NOISE);
+			printk(KERN_ERR "MATCHING motion: %d %d %d, %d %d %d NOISE:%d\n",  first.x, first.y, first.z, last.x, last.y,last.z, NOISE);
 			return 1;
 		}
 	}
@@ -154,6 +154,7 @@ int check_for_motion(struct list_head *acceleration_events,
 	match = 0;
 	iter = 0;
 	list_for_each_entry(cur_acc_evt, acceleration_events, list) {
+		printk(KERN_ERR "checnking acc_evtn\n");
 		if (!iter) {
 			iter++;
 			memcpy(prv_acc_evt, cur_acc_evt, sizeof(struct acceleration_event));
@@ -162,6 +163,7 @@ int check_for_motion(struct list_head *acceleration_events,
 		match += matching_acc(prv_acc_evt->dev_acc, cur_acc_evt->dev_acc, motion);
 		memcpy(prv_acc_evt, cur_acc_evt, sizeof(struct acceleration_event));
 	}
+	printk(KERN_ERR "---\n");
 	if (match >= motion.frq)
 		return 1;
 	return 0;
@@ -196,37 +198,25 @@ int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 		events++;
 	list_add_tail(&(acc_evt->list), &acceleration_events);
 
-	//struct motion_event *bla = list_first_entry(&motion_events,struct motion_event, list);
-	//if (bla)
-	//	printk(KERN_ERR "%d %d %d %d", bla->motion.dlt_x,  bla->motion.dlt_y, bla->motion.dlt_z, bla->motion.frq);
 
-	struct motion_event *e2 = get_n_motion_event(&motion_events, 25);
+	struct motion_event *e2 = get_n_motion_event(&motion_events, 1);
 	if (e2)
 		printk(KERN_ERR "%d %d %d %d", e2->motion.dlt_x,  e2->motion.dlt_y, e2->motion.dlt_z, e2->motion.frq);
-	else
-		printk(KERN_ERR "NNNNOOOP\n");
-	/*if (!e1)
-	struct motion_event *e2 = get_n_motion_event(&motion_events, 2);
-	if (!e2)
-		printk(KERN_ERR "%d %d %d %d", e2->motion.dlt_x,  e2->motion.dlt_y, e2->motion.dlt_z, e2->motion.frq);*/
 
-	//	my_motion.dlt_x = 1;
-//	my_motion.dlt_y = 1;
-//	my_motion.dlt_z = 10;
-//	my_motion.frq = 3;
+	e2 = get_n_motion_event(&motion_events, 2);
+	if (e2)
+		printk(KERN_ERR "%d %d %d %d", e2->motion.dlt_x,  e2->motion.dlt_y, e2->motion.dlt_z, e2->motion.frq);
 	printk(KERN_ERR "CHECKING MOTIONS\n");
 
 	list_for_each_entry(mtn, &motion_events, list) {
-//		printk(KERN_ERR "mtn :%d %d %d\n", mtn->motion.dlt_x, mtn->motion.dlt_y, mtn->motion.dlt_z);
+		printk(KERN_ERR "mtn :%d %d %d\n", mtn->motion.dlt_x, mtn->motion.dlt_y, mtn->motion.dlt_z);
 		if (check_for_motion(&acceleration_events, mtn->motion))
 			printk(KERN_ERR "DETECTED MOTION FULLFILLED\n");
 	}
-	
+	printk(KERN_ERR "ALL MOTIONS CHECKED\n");
 	spin_unlock(&acceleration_events_lock);	
 	return 0;
 
-error_free_mem_unlock:
-	spin_unlock(&acceleration_events_lock);
 error_free_mem:
 	kfree(acc_evt);
 	error:
