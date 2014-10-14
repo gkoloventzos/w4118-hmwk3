@@ -118,11 +118,11 @@ static int matching_acc(struct dev_acceleration first,
 			struct acc_motion motion)
 {
 
-	printk(KERN_ERR "MATCHIN_ACC INVOKED\n");
+//	printk(KERN_ERR "MATCHIN_ACC INVOKED\n");
 	if ( abs(last.x - first.x) +
 	     abs(last.y - first.y) +
 	     abs(last.z - first.z) > NOISE ) {
-		printk(KERN_ERR "EXCEEDS NOISE\n");
+//		printk(KERN_ERR "EXCEEDS NOISE\n");
 		if ( abs(last.x - first.x) >= motion.dlt_x &&
 		     abs(last.y - first.y) >= motion.dlt_y &&
 		     abs(last.z - first.z) >= motion.dlt_z) {
@@ -154,20 +154,16 @@ int check_for_motion(struct list_head *acceleration_events,
 	match = 0;
 	iter = 0;
 	list_for_each_entry(cur_acc_evt, acceleration_events, list) {
-		printk(KERN_ERR "checnking acc_evtn\n");
 		if (!iter) {
 			iter++;
 			prv_acc_evt = cur_acc_evt;
-			//, sizeof(struct acceleration_event));
 			continue;
 		}
 		match += matching_acc(prv_acc_evt->dev_acc, cur_acc_evt->dev_acc, motion);
 		prv_acc_evt = cur_acc_evt;
-		//, sizeof(struct acceleration_event));
+		if (match >= motion.frq)
+			return 1;
 	}
-	printk(KERN_ERR "---\n");
-	if (match >= motion.frq)
-		return 1;
 	return 0;
 }
 
@@ -198,7 +194,7 @@ int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 	else
 		events++;
 	list_add_tail(&(acc_evt->list), &acceleration_events);
-	printk(KERN_ERR "ADD acc_event: %d %d\n", events, WINDOW);
+	//printk(KERN_ERR "ADD acc_event: %d %d\n", events, WINDOW);
 
 	struct motion_event *e2 = get_n_motion_event(&motion_events, 1);
 	if (e2)
