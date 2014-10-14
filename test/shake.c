@@ -34,7 +34,7 @@ void listen_to(int child, int dir)
 
 	while (1) {
 		/* accevt_wait */
-		ret = syscall(380, dir);
+		ret = syscall(380, &dir);
 		if (ret != 0)
 			return;
 		print_motion(child, dir);
@@ -56,7 +56,7 @@ int run_time(struct timeval start)
 		exit(EXIT_FAILURE);
 	}
 
-	return (end.tv_sec-start.tv_sec)*1000000 + end.tv_usec-start.tv_usec;
+	return (end.tv_sec-start.tv_sec) + (end.tv_usec-start.tv_usec)/1000000;
 }
 
 int main(int argc, char **argv)
@@ -105,19 +105,19 @@ int main(int argc, char **argv)
 	bothdir.frq   = 100;
 
 	/* accevt_create */
-	mids[0] = syscall(379, vertical);
+	mids[0] = syscall(379, &vertical);
 	if (mids[0] < 0) {
 		perror("accevt_create");
 		exit(EXIT_FAILURE);
 	}
 
-	mids[1] = syscall(379, horizontal);
+	mids[1] = syscall(379, &horizontal);
 	if (mids[1] < 0) {
 		perror("accevt_create");
 		exit(EXIT_FAILURE);
 	}
 
-	mids[2] = syscall(379, bothdir);
+	mids[2] = syscall(379, &bothdir);
 	if (mids[2] < 0) {
 		perror("accevt_create");
 		exit(EXIT_FAILURE);
@@ -136,28 +136,29 @@ int main(int argc, char **argv)
 	}
 
 	while (1) {
-		if (run_time(start) > 60) {
-			/* accevt_destroy */
-			ret = syscall(382, 0);
-			if (ret != 0) {
-				perror("accevt_destroy");
-				exit(EXIT_FAILURE);
-			}
+		if (run_time(start) <= 60)
+			continue;
 
-			ret = syscall(382, 1);
-			if (ret != 0) {
-				perror("accevt_destroy");
-				exit(EXIT_FAILURE);
-			}
-
-			ret = syscall(382, 2);
-			if (ret != 0) {
-				perror("accevt_destroy");
-				exit(EXIT_FAILURE);
-			}
-
-			return 0;
+		/* accevt_destroy */
+		ret = syscall(382, 0);
+		if (ret != 0) {
+			perror("accevt_destroy");
+			exit(EXIT_FAILURE);
 		}
+
+		ret = syscall(382, 1);
+		if (ret != 0) {
+			perror("accevt_destroy");
+			exit(EXIT_FAILURE);
+		}
+
+		ret = syscall(382, 2);
+		if (ret != 0) {
+			perror("accevt_destroy");
+			exit(EXIT_FAILURE);
+		}
+
+		return 0;
 	}
 
 	/* wait for all children */
