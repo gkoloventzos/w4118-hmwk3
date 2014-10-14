@@ -10,6 +10,8 @@
 #include <linux/slab.h>
 #include <linux/acceleration.h>
 #include <linux/kfifo.h>
+#include <linux/wait.h>
+#include <linux/sched.h>
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
@@ -70,7 +72,7 @@ int sys_accevt_create(struct acc_motion __user *acceleration)
 	unsigned int correct_frq;
 	int errno;
 	int rval;
-
+	printk(KERN_ERR "inside create\n");
 	correct_frq = MIN(acceleration->frq, WINDOW);
 	new_event = kmalloc(sizeof(struct motion_event), GFP_KERNEL);
 	if (new_event == NULL) {
@@ -85,8 +87,8 @@ int sys_accevt_create(struct acc_motion __user *acceleration)
 		goto error;
 	}
 	init_waitqueue_head(&(new_event->waiting_procs));
-	new_event->happend = false;
-	mutex_init(new_event->mutex);
+	//new_event->happend = false;
+	//mutex_init(new_event->mutex);
 	spin_lock(&motions_list_lock);
 	new_event->event_id = ++num_events;
 	list_add(&(new_event->list), &motion_events);
@@ -106,13 +108,14 @@ int sys_accevt_wait(int event_id)
 	spin_lock(&motion_events_lock);
 	evt = get_n_motion_event(&motion_events, event_id);
 	spin_unlock(&motion_events_lock);
-	if (evt == NULL)
+	if (evt == NULL) {
+		printk(KERN_ERR "WAIT ERR\n");
 		return -ENODATA; //NOT CORRECT ERROR
-	
+	}
 	wait_event_interruptible(evt->waiting_procs, evt->happend);
-	printk(KERN_ERR "wait: %d %d %d %d", evt->motion.dlt_x,  evt->motion.dlt_y, evt->motion.dlt_z, evt->motion.frq);
+	evt->happend = false;
+	//printk(KERN_ERR "WAIT\n");
 	return 0;
-	/**/
 }
 
 
@@ -132,7 +135,7 @@ static int matching_acc(struct dev_acceleration first,
 		if ( abs(last.x - first.x) >= motion.dlt_x &&
 		     abs(last.y - first.y) >= motion.dlt_y &&
 		     abs(last.z - first.z) >= motion.dlt_z) {
-			printk(KERN_ERR "MATCHING motion: %d %d %d, %d %d %d NOISE:%d\n",  first.x, first.y, first.z, last.x, last.y,last.z, NOISE);
+printk(KERN_ERR "MATCHING motion: %d %d %d, %d %d %d NOISE:%d\n",  first.x, first.y, first.z, last.x, last.y,last.z, NOISE);
 			return 1;
 		}
 	}
@@ -168,10 +171,13 @@ int check_for_motion(struct list_head *acceleration_events,
 			prv_acc_evt = cur_acc_evt;
 			continue;
 		}
+		printk(KERN_ERR "MATCH = %d\n", match);
 		match += matching_acc(prv_acc_evt->dev_acc, cur_acc_evt->dev_acc, motion);
 		prv_acc_evt = cur_acc_evt;
-		if (match >= motion.frq)
+		if (match >= motion.frq) {
+//			printk(KERN_ERR "MATCHEDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD\n");
 			return 1;
+		}
 	}
 	return 0;
 }
@@ -203,27 +209,19 @@ int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 	else
 		events++;
 	list_add_tail(&(acc_evt->list), &acceleration_events);
-	//printk(KERN_ERR "ADD acc_event: %d %d\n", events, WINDOW);
 
-	struct motion_event *e2 = get_n_motion_event(&motion_events, 1);
-	if (e2)
-		printk(KERN_ERR "%d %d %d %d", e2->motion.dlt_x,  e2->motion.dlt_y, e2->motion.dlt_z, e2->motion.frq);
-
-	e2 = get_n_motion_event(&motion_events, 2);
-	if (e2)
-		printk(KERN_ERR "%d %d %d %d", e2->motion.dlt_x,  e2->motion.dlt_y, e2->motion.dlt_z, e2->motion.frq);
-	printk(KERN_ERR "CHECKING MOTIONS\n");
+	printk(KERN_ERR "REGISTERING :%d %d %d\n", acceleration->x, acceleration->y, acceleration->z);
+//	printk(KERN_ERR "CHECKING MOTIONS\n");
 	spin_lock(&motion_events_lock);
 	list_for_each_entry(mtn, &motion_events, list) {
 //		printk(KERN_ERR "mtn :%d %d %d\n", mtn->motion.dlt_x, mtn->motion.dlt_y, mtn->motion.dlt_z);
 		if (check_for_motion(&acceleration_events, mtn->motion)) {
-			printk(KERN_ERR "DETECTED MOTION FULLFILLED\n");
+			printk(KERN_ERR "DETECTED MOVEMENT\n");
 			mtn->happend = true;
-			wake_up_interruptible(mtn->waiting_procs);
+			wake_up_interruptible(&(mtn->waiting_procs));
 		}
 	}
 	spin_unlock(&motion_events_lock);
-	printk(KERN_ERR "ALL MOTIONS CHECKED\n");
 	spin_unlock(&acceleration_events_lock);	
 	return 0;
 
