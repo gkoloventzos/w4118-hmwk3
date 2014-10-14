@@ -166,7 +166,9 @@ int check_for_motion(struct list_head *acceleration_events,
 	if (list_empty(acceleration_events->next))
 		return 0;
 
-	prv_acc_evt = list_first_entry(acceleration_events, struct acceleration_event, list);
+	prv_acc_evt = list_first_entry(acceleration_events,
+				       struct acceleration_event,
+				       list);
 	match = 0;
 	iter = 0;
 	list_for_each_entry(cur_acc_evt, acceleration_events, list) {
@@ -176,10 +178,12 @@ int check_for_motion(struct list_head *acceleration_events,
 			continue;
 		}
 		printk(KERN_ERR "MATCH = %d\n", match);
-		match += matching_acc(prv_acc_evt->dev_acc, cur_acc_evt->dev_acc, motion);
+		match += matching_acc(prv_acc_evt->dev_acc,
+				      cur_acc_evt->dev_acc,
+				      motion);
 		prv_acc_evt = cur_acc_evt;
 		if (match >= motion.frq) {
-//			printk(KERN_ERR "MATCHEDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD\n");
+//			printk(KERN_ERR "MATCHEDDDDDDDDDDDDDDDDDDDDDDDDDDDD\n");
 			return 1;
 		}
 	}
