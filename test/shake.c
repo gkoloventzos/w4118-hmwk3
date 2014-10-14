@@ -35,7 +35,7 @@ void listen_to(int child, int dir)
 
 	while (1) {
 		/* accevt_wait */
-		ret = syscall(380, dir);
+		ret = syscall(380, &dir);
 		if (ret != 0)
 			return;
 		print_motion(child, dir);
@@ -57,7 +57,7 @@ int run_time(struct timeval start)
 		exit(EXIT_FAILURE);
 	}
 
-	return (end.tv_sec-start.tv_sec)*1000000 + end.tv_usec-start.tv_usec;
+	return (end.tv_sec-start.tv_sec) + (end.tv_usec-start.tv_usec)/1000000;
 }
 
 int main(int argc, char **argv)
