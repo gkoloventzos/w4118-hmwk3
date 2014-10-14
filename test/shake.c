@@ -155,7 +155,6 @@ int main(int argc, char **argv)
 				perror("accevt_destroy");
 				exit(EXIT_FAILURE);
 			}
-
 			return 0;
 		}
 	}

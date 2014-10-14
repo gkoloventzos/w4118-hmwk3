@@ -32,13 +32,18 @@ struct motion_event {
 	struct acc_motion motion;
 	wait_queue_head_t waiting_procs;
 	struct mutex waiting_procs_lock;
+	bool happend;
 	struct list_head list;
 };
 
 LIST_HEAD(motion_events);
 static DEFINE_SPINLOCK(motion_events_lock);
 
-
+/*
+ * Helper function....
+ *
+ * NOTE: The caller SHOULD hold the motion_events_lock
+ */
 static inline
 struct motion_event* get_n_motion_event(struct list_head *motions, int n)
 {
@@ -46,18 +51,13 @@ struct motion_event* get_n_motion_event(struct list_head *motions, int n)
 
 	if (n <= 0)
 		return NULL;
-	spin_lock(&motion_events_lock);
-	if(list_empty(motions)) {
-		spin_unlock(&motion_events_lock);
+	if(list_empty(motions))
 		return NULL;
-	}
-	list_for_each_entry(mtn, motions, list) {
-		if (!--n) {
-			spin_unlock(&motion_events_lock);
+
+	list_for_each_entry_reverse(mtn, motions, list) {
+		if (!--n)
 			return mtn;
-		}
 	}
-	spin_unlock(&motion_events_lock);
 	return NULL;
 }
 
@@ -85,6 +85,8 @@ int sys_accevt_create(struct acc_motion __user *acceleration)
 		goto error;
 	}
 	init_waitqueue_head(&(new_event->waiting_procs));
+	new_event->happend = false;
+	mutex_init(new_event->mutex);
 	spin_lock(&motions_list_lock);
 	new_event->event_id = ++num_events;
 	list_add(&(new_event->list), &motion_events);
@@ -101,10 +103,14 @@ int sys_accevt_wait(int event_id)
 {
 	struct motion_event *evt;
 
+	spin_lock(&motion_events_lock);
 	evt = get_n_motion_event(&motion_events, event_id);
+	spin_unlock(&motion_events_lock);
 	if (evt == NULL)
 		return -ENODATA; //NOT CORRECT ERROR
-	return -1;
+	
+	wait_event_interruptible(evt->waiting_procs, evt->happend);
+	printk(KERN_ERR "wait: %d %d %d %d", evt->motion.dlt_x,  evt->motion.dlt_y, evt->motion.dlt_z, evt->motion.frq);
 	return 0;
 	/**/
 }
@@ -136,6 +142,9 @@ static int matching_acc(struct dev_acceleration first,
 /*
  * Helper function that checks if a specific motion is satisfied
  * from the movement data currently buffered into the kernel
+ *
+ * NOTE that the caller MUST hold acceleration_events_lock
+ *
  */
 static
 int check_for_motion(struct list_head *acceleration_events,
@@ -204,12 +213,16 @@ int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 	if (e2)
 		printk(KERN_ERR "%d %d %d %d", e2->motion.dlt_x,  e2->motion.dlt_y, e2->motion.dlt_z, e2->motion.frq);
 	printk(KERN_ERR "CHECKING MOTIONS\n");
-
+	spin_lock(&motion_events_lock);
 	list_for_each_entry(mtn, &motion_events, list) {
-		printk(KERN_ERR "mtn :%d %d %d\n", mtn->motion.dlt_x, mtn->motion.dlt_y, mtn->motion.dlt_z);
-		if (check_for_motion(&acceleration_events, mtn->motion))
+//		printk(KERN_ERR "mtn :%d %d %d\n", mtn->motion.dlt_x, mtn->motion.dlt_y, mtn->motion.dlt_z);
+		if (check_for_motion(&acceleration_events, mtn->motion)) {
 			printk(KERN_ERR "DETECTED MOTION FULLFILLED\n");
+			mtn->happend = true;
+			wake_up_interruptible(mtn->waiting_procs);
+		}
 	}
+	spin_unlock(&motion_events_lock);
 	printk(KERN_ERR "ALL MOTIONS CHECKED\n");
 	spin_unlock(&acceleration_events_lock);	
 	return 0;
