@@ -4,7 +4,7 @@
 /*
  * Define time interval (ms)
  */
-#define TIME_INTERVAL 10
+#define TIME_INTERVAL 1
 
 struct dev_acceleration {
 	int x;
