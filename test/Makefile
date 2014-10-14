@@ -13,7 +13,6 @@ all : $(OBJECTS)
 	$(CC) $(CFLAGS) -c $^
 
 clean:
-	rm -f $(OBJECTS)
 	rm -f $(EXE)
 
 .PHONY: clean

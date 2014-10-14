@@ -18,6 +18,11 @@
 #define accevt_wait		380
 #define accevt_destroy	382
 
+/*
+ * give a motion 'dir' print
+ * that the current process detected
+ * the given motion
+ */
 static void print_motion(int dir)
 {
 	if (dir == VERTICAL)
@@ -40,6 +45,7 @@ static void listen_to(int event_id, int dir)
 
 	while (1) {
 		ret = syscall(accevt_wait, event_id);
+		/* if wait fails (i.e. nothing to wait for), return */
 		if (ret != 0)
 			return;
 		print_motion(dir);
@@ -91,8 +97,9 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	/* CREATE MOTIONS
-	 * move this code some place else
+	/*
+	 * define custom motions for vertical,
+	 * horizontal x & y and both directions
 	 */
 	vertical.dlt_x = 1;
 	vertical.dlt_y = 1;
@@ -114,6 +121,7 @@ int main(int argc, char **argv)
 	bothdir.dlt_z = 30;
 	bothdir.frq   = 15;
 
+	/* create the motions defined above, in the kernel */
 	mids[VERTICAL] = syscall(accevt_create, &vertical);
 	if (mids[VERTICAL] < 0) {
 		perror("accevt_create");
@@ -138,6 +146,10 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
+	/*
+	 * fork n children, where the i-th child
+	 * listens for the i % 4-th motion event
+	 */
 	for (i = 0; i < n; i++) {
 		pid = fork();
 		if (pid < 0) {
@@ -151,8 +163,10 @@ int main(int argc, char **argv)
 
 	err = 0;
 	while (1) {
+		/* loop and do nothing for 60 seconds */
 		if (run_time(start) <= 60)
 			continue;
+		/* start children cleanup, by destroying each motion event */
 		ret = syscall(accevt_destroy, mids[VERTICAL]);
 		if (ret != 0) {
 			err = ret;
