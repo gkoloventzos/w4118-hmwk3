@@ -6,6 +6,7 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <syscall.h>
 #include "acceleration.h"
 
 #define VERTICAL	0
@@ -21,7 +22,7 @@ void print_motion(int child, int dir)
 	else if (dir == BOTHDIR)
 		printf("%d detected a shake\n", child);
 	else
-		printf("something went wrong...\n");
+		printf("something went wrong...%d\n", dir);
 }
 
 /*
@@ -105,19 +106,20 @@ int main(int argc, char **argv)
 	bothdir.frq   = 100;
 
 	/* accevt_create */
-	mids[0] = syscall(379, vertical);
+	mids[0] = syscall(379, &vertical);
 	if (mids[0] < 0) {
+		printf("%d\n", mids[0]);
 		perror("accevt_create");
 		exit(EXIT_FAILURE);
 	}
 
-	mids[1] = syscall(379, horizontal);
+	mids[1] = syscall(379, &horizontal);
 	if (mids[1] < 0) {
 		perror("accevt_create");
 		exit(EXIT_FAILURE);
 	}
 
-	mids[2] = syscall(379, bothdir);
+	mids[2] = syscall(379, &bothdir);
 	if (mids[2] < 0) {
 		perror("accevt_create");
 		exit(EXIT_FAILURE);
@@ -130,33 +132,31 @@ int main(int argc, char **argv)
 			perror("fork");
 			exit(EXIT_FAILURE);
 		} else if (!pid) {
-			listen_to(i, mids[i % 3]);
+			listen_to(i, mids[i] % 3);
 			exit(EXIT_SUCCESS);
 		}
 	}
 
 	while (1) {
-		if (run_time(start) > 60) {
-			/* accevt_destroy */
-			ret = syscall(382, 0);
-			if (ret != 0) {
-				perror("accevt_destroy");
-				exit(EXIT_FAILURE);
-			}
-
-			ret = syscall(382, 1);
-			if (ret != 0) {
-				perror("accevt_destroy");
-				exit(EXIT_FAILURE);
-			}
-
-			ret = syscall(382, 2);
-			if (ret != 0) {
-				perror("accevt_destroy");
-				exit(EXIT_FAILURE);
-			}
-			return 0;
+		if (run_time(start) <= 60)
+			continue;
+		/* accevt_destroy */
+		ret = syscall(382, 0);
+		if (ret != 0) {
+			perror("accevt_destroy");
+			exit(EXIT_FAILURE);
 		}
+		ret = syscall(382, 1);
+		if (ret != 0) {
+			perror("accevt_destroy");
+			exit(EXIT_FAILURE);
+		}
+		ret = syscall(382, 2);
+		if (ret != 0) {
+			perror("accevt_destroy");
+			exit(EXIT_FAILURE);
+		}
+		return 0;
 	}
 
 	/* wait for all children */
