@@ -157,11 +157,13 @@ int check_for_motion(struct list_head *acceleration_events,
 		printk(KERN_ERR "checnking acc_evtn\n");
 		if (!iter) {
 			iter++;
-			memcpy(prv_acc_evt, cur_acc_evt, sizeof(struct acceleration_event));
+			prv_acc_evt = cur_acc_evt;
+			//, sizeof(struct acceleration_event));
 			continue;
 		}
 		match += matching_acc(prv_acc_evt->dev_acc, cur_acc_evt->dev_acc, motion);
-		memcpy(prv_acc_evt, cur_acc_evt, sizeof(struct acceleration_event));
+		prv_acc_evt = cur_acc_evt;
+		//, sizeof(struct acceleration_event));
 	}
 	printk(KERN_ERR "---\n");
 	if (match >= motion.frq)
@@ -171,7 +173,6 @@ int check_for_motion(struct list_head *acceleration_events,
 
 int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 {
-
 	int rval;
 	int errno;
 	static int events = 0;
@@ -197,7 +198,7 @@ int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 	else
 		events++;
 	list_add_tail(&(acc_evt->list), &acceleration_events);
-
+	printk(KERN_ERR "ADD acc_event: %d %d\n", events, WINDOW);
 
 	struct motion_event *e2 = get_n_motion_event(&motion_events, 1);
 	if (e2)
