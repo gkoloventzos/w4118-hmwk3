@@ -10,18 +10,19 @@
 #include "accevt.h"
 
 #define VERTICAL	0
-#define HORIZONTAL	1
-#define BOTHDIR		2
+#define HORIZONTALX	1
+#define HORIZONTALY	2
+#define BOTHDIR		3
 
 #define accevt_create	379
-#define accevt_wait	380
+#define accevt_wait		380
 #define accevt_destroy	382
 
 static void print_motion(int dir)
 {
 	if (dir == VERTICAL)
 		printf("%ld detected a vertical shake\n", (long) getpid());
-	else if (dir == HORIZONTAL)
+	else if (dir == HORIZONTALX || dir == HORIZONTALY)
 		printf("%ld detected a horizontal shake\n", (long) getpid());
 	else if (dir == BOTHDIR)
 		printf("%ld detected a shake\n", (long) getpid());
@@ -38,9 +39,7 @@ static void listen_to(int event_id, int dir)
 	int ret;
 
 	while (1) {
-//		printf("GOING TO WAIIT\n");
 		ret = syscall(accevt_wait, event_id);
-//		printf("WOKEN UP\n");
 		if (ret != 0)
 			return;
 		print_motion(dir);
@@ -75,9 +74,10 @@ int main(int argc, char **argv)
 	struct timeval start;
 	struct acc_motion bothdir;
 	struct acc_motion vertical;
-	struct acc_motion horizontal;
+	struct acc_motion horizontal_x;
+	struct acc_motion horizontal_y;
 
-	err = 0 ;
+	err = 0;
 	if (argc == 2) {
 		n = atoi(argv[1]);
 	} else {
@@ -99,23 +99,35 @@ int main(int argc, char **argv)
 	vertical.dlt_z = 50;
 	vertical.frq   = 15;
 
-	horizontal.dlt_x = 30;
-	horizontal.dlt_y = 1;
-	horizontal.dlt_z = 1;
-	horizontal.frq   = 15;
+	horizontal_x.dlt_x = 30;
+	horizontal_x.dlt_y = 1;
+	horizontal_x.dlt_z = 1;
+	horizontal_x.frq   = 15;
+
+	horizontal_y.dlt_x = 1;
+	horizontal_y.dlt_y = 30;
+	horizontal_y.dlt_z = 1;
+	horizontal_y.frq   = 15;
 
 	bothdir.dlt_x = 10;
 	bothdir.dlt_y = 10;
 	bothdir.dlt_z = 30;
 	bothdir.frq   = 15;
+
 	mids[VERTICAL] = syscall(accevt_create, &vertical);
 	if (mids[VERTICAL] < 0) {
 		perror("accevt_create");
 		exit(EXIT_FAILURE);
 	}
 
-	mids[HORIZONTAL] = syscall(accevt_create, &horizontal);
-	if (mids[HORIZONTAL] < 0) {
+	mids[HORIZONTALX] = syscall(accevt_create, &horizontal_x);
+	if (mids[HORIZONTALX] < 0) {
+		perror("accevt_create");
+		exit(EXIT_FAILURE);
+	}
+
+	mids[HORIZONTALY] = syscall(accevt_create, &horizontal_y);
+	if (mids[HORIZONTALY] < 0) {
 		perror("accevt_create");
 		exit(EXIT_FAILURE);
 	}
@@ -132,7 +144,7 @@ int main(int argc, char **argv)
 			perror("fork");
 			exit(EXIT_FAILURE);
 		} else if (!pid) {
-			listen_to(mids[i % 3], i % 3);
+			listen_to(mids[i % 4], i % 4);
 			exit(EXIT_SUCCESS);
 		}
 	}
@@ -146,12 +158,16 @@ int main(int argc, char **argv)
 			err = ret;
 			perror("accevt_destroy: VERTICAL");
 		}
-		ret = syscall(accevt_destroy, mids[HORIZONTAL]);
+		ret = syscall(accevt_destroy, mids[HORIZONTALX]);
 		if (ret != 0) {
 			err = ret;
-			perror("accevt_destroy: HORIZONTAL");
+			perror("accevt_destroy: HORIZONTALX");
 		}
-
+		ret = syscall(accevt_destroy, mids[HORIZONTALY]);
+		if (ret != 0) {
+			err = ret;
+			perror("accevt_destroy: HORIZONTALY");
+		}
 		ret = syscall(accevt_destroy, mids[BOTHDIR]);
 		if (ret != 0) {
 			err = ret;
