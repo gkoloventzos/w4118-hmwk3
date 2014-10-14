@@ -77,6 +77,7 @@ int main(int argc, char **argv)
 	struct acc_motion vertical;
 	struct acc_motion horizontal;
 
+	err = 0 ;
 	if (argc == 2) {
 		n = atoi(argv[1]);
 	} else {
@@ -156,13 +157,11 @@ int main(int argc, char **argv)
 			err = ret;
 			perror("accevt_destroy: BOTHDIR");
 		}
-		if (err)
-			return err;
+		break;
 	}
-
 	/* wait for all children */
-	while ((ret = wait(NULL)) == -1 && errno == EINTR)
+	while (wait(NULL) > 0)
 		;
 
-	return 0;
+	return err;
 }
