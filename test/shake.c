@@ -2,12 +2,12 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <syscall.h>
 #include <pthread.h>
+#include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <sys/wait.h>
-#include <syscall.h>
-#include "acceleration.h"
+#include "accevt.h"
 
 #define VERTICAL	0
 #define HORIZONTAL	1
