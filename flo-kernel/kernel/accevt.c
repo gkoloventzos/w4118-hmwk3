@@ -12,6 +12,7 @@
 #include <linux/kfifo.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
+#include <asm/atomic.h>
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
@@ -35,6 +36,7 @@ struct motion_event {
 	wait_queue_head_t waiting_procs;
 	struct mutex waiting_procs_lock;
 	bool happend;
+	atomic_t processes;
 	struct list_head list;
 };
 
@@ -47,13 +49,13 @@ static DEFINE_SPINLOCK(motion_events_lock);
  * NOTE: The caller SHOULD hold the motion_events_lock
  */
 static inline
-struct motion_event* get_n_motion_event(struct list_head *motions, int n)
+struct motion_event *get_n_motion_event(struct list_head *motions, int n)
 {
 	struct motion_event *mtn;
 
 	if (n <= 0)
 		return NULL;
-	if(list_empty(motions))
+	if (list_empty(motions))
 		return NULL;
 
 	list_for_each_entry_reverse(mtn, motions, list) {
@@ -68,7 +70,7 @@ struct motion_event* get_n_motion_event(struct list_head *motions, int n)
 int sys_accevt_create(struct acc_motion __user *acceleration)
 {
 	struct motion_event *new_event;
-	static int num_events = 0;
+	static int num_events;
 	unsigned int correct_frq;
 	int errno;
 	int rval;
@@ -82,18 +84,19 @@ int sys_accevt_create(struct acc_motion __user *acceleration)
 	rval = copy_from_user(&(new_event->motion),
 			      acceleration,
 			      sizeof(struct acc_motion));
-	if (rval < 0){
+	if (rval < 0) {
 		errno = -EFAULT;
 		goto error;
 	}
 	init_waitqueue_head(&(new_event->waiting_procs));
 	//new_event->happend = false;
 	//mutex_init(new_event->mutex);
+	new_event->processes = ATOMIC_INIT(0);
 	spin_lock(&motions_list_lock);
 	new_event->event_id = ++num_events;
 	list_add(&(new_event->list), &motion_events);
 	spin_unlock(&motions_list_lock);
-	printk( KERN_ERR "Created ecvent eith id:%d\n", num_events);
+	printk(KERN_ERR "Created ecvent eith id:%d\n", num_events);
 	return num_events;
 
 error:
@@ -112,6 +115,7 @@ int sys_accevt_wait(int event_id)
 		printk(KERN_ERR "WAIT ERR\n");
 		return -ENODATA; //NOT CORRECT ERROR
 	}
+	//atomic_inc(&evt->processes);
 	wait_event_interruptible(evt->waiting_procs, evt->happend);
 	evt->happend = false;
 	//printk(KERN_ERR "WAIT\n");
@@ -128,14 +132,14 @@ static int matching_acc(struct dev_acceleration first,
 {
 
 //	printk(KERN_ERR "MATCHIN_ACC INVOKED\n");
-	if ( abs(last.x - first.x) +
-	     abs(last.y - first.y) +
-	     abs(last.z - first.z) > NOISE ) {
+	if (abs(last.x - first.x) +
+	    abs(last.y - first.y) +
+	    abs(last.z - first.z) > NOISE) {
 //		printk(KERN_ERR "EXCEEDS NOISE\n");
-		if ( abs(last.x - first.x) >= motion.dlt_x &&
-		     abs(last.y - first.y) >= motion.dlt_y &&
-		     abs(last.z - first.z) >= motion.dlt_z) {
-printk(KERN_ERR "MATCHING motion: %d %d %d, %d %d %d NOISE:%d\n",  first.x, first.y, first.z, last.x, last.y,last.z, NOISE);
+		if (abs(last.x - first.x) >= motion.dlt_x &&
+		    abs(last.y - first.y) >= motion.dlt_y &&
+		    abs(last.z - first.z) >= motion.dlt_z) {
+printk(KERN_ERR "MATCHING motion: %d %d %d, %d %d %d NOISE:%d\n",  first.x, first.y, first.z, last.x, last.y, last.z, NOISE);
 			return 1;
 		}
 	}
@@ -162,7 +166,9 @@ int check_for_motion(struct list_head *acceleration_events,
 	if (list_empty(acceleration_events->next))
 		return 0;
 
-	prv_acc_evt = list_first_entry(acceleration_events, struct acceleration_event, list);
+	prv_acc_evt = list_first_entry(acceleration_events,
+				       struct acceleration_event,
+				       list);
 	match = 0;
 	iter = 0;
 	list_for_each_entry(cur_acc_evt, acceleration_events, list) {
@@ -172,10 +178,12 @@ int check_for_motion(struct list_head *acceleration_events,
 			continue;
 		}
 		printk(KERN_ERR "MATCH = %d\n", match);
-		match += matching_acc(prv_acc_evt->dev_acc, cur_acc_evt->dev_acc, motion);
+		match += matching_acc(prv_acc_evt->dev_acc,
+				      cur_acc_evt->dev_acc,
+				      motion);
 		prv_acc_evt = cur_acc_evt;
 		if (match >= motion.frq) {
-//			printk(KERN_ERR "MATCHEDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD\n");
+//			printk(KERN_ERR "MATCHEDDDDDDDDDDDDDDDDDDDDDDDDDDDD\n");
 			return 1;
 		}
 	}
@@ -186,7 +194,7 @@ int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 {
 	int rval;
 	int errno;
-	static int events = 0;
+	static int events;
 	struct motion_event *mtn;
 	struct acceleration_event *acc_evt;
 
@@ -219,15 +227,16 @@ int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 			printk(KERN_ERR "DETECTED MOVEMENT\n");
 			mtn->happend = true;
 			wake_up_interruptible(&(mtn->waiting_procs));
+			atomic_set(&mtn->processes, 0);
 		}
 	}
 	spin_unlock(&motion_events_lock);
-	spin_unlock(&acceleration_events_lock);	
+	spin_unlock(&acceleration_events_lock);
 	return 0;
 
 error_free_mem:
 	kfree(acc_evt);
-	error:
+error:
 	return errno;
 }
 
@@ -235,15 +244,17 @@ error_free_mem:
 int sys_accevt_destroy(int event_id)
 {
 	struct motion_event *evt;
-	
 
 	evt = get_n_motion_event(&motion_events, event_id);
 	if (evt != NULL) {
 		//remove queue?
+		if (atomic_read(&evt->processes)) {
+			evt->happend = true;
+			wake_up_interruptible(&(evt->waiting_procs));
+			printk(KERN_ERR "Waking everything up\n");
+		}
 		list_del(&(evt->list));
 		kfree(evt);
 	}
 	return -ENODATA; //NOT CORRECT ERROR
 }
-
-

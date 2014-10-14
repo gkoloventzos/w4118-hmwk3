@@ -89,41 +89,6 @@ static int poll_sensor_data(struct sensors_poll_device_t *sensors_device)
 		    acceleration.x, acceleration.y, acceleration.z);
 
 #ifdef _MOTION_SUPPORT
-//		static int lol = 0;
-//
-//		if ( !lol){
-//		struct acc_motion {
-//
-//			unsigned int dlt_x; /* +/- around X-axis */
-//			unsigned int dlt_y; /* +/- around Y-axis */
-//			unsigned int dlt_z; /* +/- around Z-axis */
-//
-//			unsigned int frq;   /* Number of samples that satisfies:
-//				sum_each_sample(dlt_x + dlt_y + dlt_z) > NOISE */
-//		};
-//
-//
-//		struct acc_motion my_motion;
-//		my_motion.dlt_x = 1;
-//		my_motion.dlt_y = 1;
-//		my_motion.dlt_z = 1;
-//		my_motion.frq = 1;
-//		err = syscall(379, &my_motion);
-
-//		my_motion.dlt_x = 2;
-//		my_motion.dlt_y = 2;
-//		my_motion.dlt_z = 2;
-//		my_motion.frq = 2;
-//		err = syscall(379, &my_motion);
-//
-//		my_motion.dlt_x = 3;
-//		my_motion.dlt_y = 3;
-//		my_motion.dlt_z = 3;
-//		my_motion.frq = 3;
-//		err = syscall(379, &my_motion);
-//
-//		lol = 1;
-//	}
 		err = syscall(__NR_accevt_signal, &acceleration);
 #else
 		err = syscall(__NR_set_acceleration, &acceleration);
