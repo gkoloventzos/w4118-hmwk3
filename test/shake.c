@@ -140,21 +140,21 @@ int main(int argc, char **argv)
 	while (1) {
 		if (run_time(start) <= 60)
 			continue;
-		ret = syscall(accevt_destroy, 0);
+		ret = syscall(accevt_destroy, mids[VERTICAL]);
 		if (ret != 0) {
 			err = ret;
-			perror("accevt_destroy");
+			perror("accevt_destroy: VERTICAL");
 		}
-		ret = syscall(accevt_destroy, 1);
+		ret = syscall(accevt_destroy, mids[HORIZONTAL]);
 		if (ret != 0) {
 			err = ret;
-			perror("accevt_destroy");
+			perror("accevt_destroy: HORIZONTAL");
 		}
 
-		ret = syscall(accevt_destroy, 2);
+		ret = syscall(accevt_destroy, mids[BOTHDIR]);
 		if (ret != 0) {
 			err = ret;
-			perror("accevt_destroy");
+			perror("accevt_destroy: BOTHDIR");
 		}
 		if (err)
 			return err;
