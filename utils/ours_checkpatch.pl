@@ -37,13 +37,15 @@ print GREEN "Starting from commit with hash $hash\n";
 my $skip = "flo-kernel/arch/arm/include/asm/unistd.h";
 my $checkpath = "flo-kernel/scripts/checkpatch.pl";
 my $out = `git diff --name-only $hash HEAD`;
+my $gdiff = "--ignore FILE_PATH_CHANGES -terse --no-signoff -no-tree";
 my @lines = split /\n/, $out;
 foreach my $line (@lines) {
 	unless (-B $line) {
 		if (exists $skip_list{$line}) {
 			my $file = basename($line);
 			$std = `git diff $hash -- $line > /tmp/$file`;
-			$stdout = `$checkpath --ignore FILE_PATH_CHANGES -terse --no-signoff -no-tree /tmp/$file`;
+			$stdout =
+			`$checkpath $gdiff /tmp/$file`;
 			`rm -f /tmp/$file`;
 		} else {
 			$stdout = `$checkpath -terse -no-tree -f $line`;
