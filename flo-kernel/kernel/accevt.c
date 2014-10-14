@@ -35,8 +35,8 @@ struct motion_event {
 	struct acc_motion motion;
 	wait_queue_head_t waiting_procs;
 	struct mutex waiting_procs_lock;
-	bool happend;
-	atomic_t processes;
+	bool happened;
+	int waiting_procs_cnt;
 	struct list_head list;
 };
 
@@ -89,9 +89,9 @@ int sys_accevt_create(struct acc_motion __user *acceleration)
 		goto error;
 	}
 	init_waitqueue_head(&(new_event->waiting_procs));
-	//new_event->happend = false;
-	//mutex_init(new_event->mutex);
-//	new_event->processes = ATOMIC_INIT(0);
+	new_event->happened = false;
+	mutex_init(&new_event->waiting_procs_lock);
+	new_event->waiting_procs_cnt = 0;
 	spin_lock(&motions_list_lock);
 	new_event->event_id = ++num_events;
 	list_add(&(new_event->list), &motion_events);
@@ -116,8 +116,12 @@ int sys_accevt_wait(int event_id)
 		return -ENODATA; //NOT CORRECT ERROR
 	}
 	//atomic_inc(&evt->processes);
-	wait_event_interruptible(evt->waiting_procs, evt->happend);
-	evt->happend = false;
+	wait_event_interruptible(evt->waiting_procs, evt->happened);
+	mutex_lock(&evt->waiting_procs_lock);
+	if(!--evt->waiting_procs_cnt)
+		evt->happened = false;
+	mutex_lock(&evt->waiting_procs_lock);
+
 	//printk(KERN_ERR "WAIT\n");
 	return 0;
 }
@@ -217,7 +221,7 @@ int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 		trash = list_first_entry(&acceleration_events,
 				   struct acceleration_event,
 				   list);
-		list_del(acceleration_events.next);
+		list_del(&trash->list);
 		printk(KERN_ERR "DELETED :%d %d %d\n", trash->dev_acc.x, trash->dev_acc.y, trash->dev_acc.z);
 		kfree(trash);
 	} else {
@@ -231,9 +235,8 @@ int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 //		printk(KERN_ERR "mtn :%d %d %d\n", mtn->motion.dlt_x, mtn->motion.dlt_y, mtn->motion.dlt_z);
 		if (check_for_motion(&acceleration_events, mtn->motion)) {
 			printk(KERN_ERR "DETECTED MOVEMENT\n");
-			mtn->happend = true;
+			mtn->happened = true;
 			wake_up_interruptible(&(mtn->waiting_procs));
-			atomic_set(&mtn->processes, 0);
 		}
 	}
 	spin_unlock(&motion_events_lock);
@@ -254,8 +257,8 @@ int sys_accevt_destroy(int event_id)
 	evt = get_n_motion_event(&motion_events, event_id);
 	if (evt != NULL) {
 		//remove queue?
-		if (atomic_read(&evt->processes)) {
-			evt->happend = true;
+		if (evt->waiting_procs_cnt) {
+			evt->happened = true;
 			wake_up_interruptible(&(evt->waiting_procs));
 			printk(KERN_ERR "Waking everything up\n");
 		}
