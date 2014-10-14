@@ -34,9 +34,9 @@ struct motion_event {
 	unsigned int event_id;
 	struct acc_motion motion;
 	wait_queue_head_t waiting_procs;
-	struct mutex waiting_procs_lock;
+//	struct mutex waiting_procs_lock;
 	bool happened;
-	int waiting_procs_cnt;
+//	int waiting_procs_cnt;
 	struct list_head list;
 };
 
@@ -90,8 +90,8 @@ int sys_accevt_create(struct acc_motion __user *acceleration)
 	}
 	init_waitqueue_head(&(new_event->waiting_procs));
 	new_event->happened = false;
-	mutex_init(&new_event->waiting_procs_lock);
-	new_event->waiting_procs_cnt = 0;
+//	mutex_init(&new_event->waiting_procs_lock);
+//	new_event->waiting_procs_cnt = 0;
 	spin_lock(&motions_list_lock);
 	new_event->event_id = ++num_events;
 	list_add(&(new_event->list), &motion_events);
@@ -116,11 +116,16 @@ int sys_accevt_wait(int event_id)
 		return -ENODATA; //NOT CORRECT ERROR
 	}
 	//atomic_inc(&evt->processes);
+//	mutex_lock(&evt->waiting_procs_lock);
+//	++evt->waiting_procs_cnt;
+//	mutex_lock(&evt->waiting_procs_lock);
+
+
 	wait_event_interruptible(evt->waiting_procs, evt->happened);
-	mutex_lock(&evt->waiting_procs_lock);
-	if(!--evt->waiting_procs_cnt)
-		evt->happened = false;
-	mutex_lock(&evt->waiting_procs_lock);
+//	mutex_lock(&evt->waiting_procs_lock);
+//	if(!--evt->waiting_procs_cnt)
+	evt->happened = false;
+//	mutex_lock(&evt->waiting_procs_lock);
 
 	//printk(KERN_ERR "WAIT\n");
 	return 0;
@@ -223,7 +228,7 @@ int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 				   list);
 		list_del(&trash->list);
 		printk(KERN_ERR "DELETED :%d %d %d\n", trash->dev_acc.x, trash->dev_acc.y, trash->dev_acc.z);
-		kfree(trash);
+//		kfree(trash);
 	} else {
 		events++;
 	}
@@ -254,16 +259,16 @@ int sys_accevt_destroy(int event_id)
 {
 	struct motion_event *evt;
 
-	evt = get_n_motion_event(&motion_events, event_id);
-	if (evt != NULL) {
-		//remove queue?
-		if (evt->waiting_procs_cnt) {
-			evt->happened = true;
-			wake_up_interruptible(&(evt->waiting_procs));
-			printk(KERN_ERR "Waking everything up\n");
-		}
-		list_del(&(evt->list));
-		kfree(evt);
-	}
+//	evt = get_n_motion_event(&motion_events, event_id);
+//	if (evt != NULL) {
+//		//remove queue?
+//		if (evt->waiting_procs_cnt) {
+//			evt->happened = true;
+//			wake_up_interruptible(&(evt->waiting_procs));
+//			printk(KERN_ERR "Waking everything up\n");
+//		}
+//		list_del(&(evt->list));
+//		kfree(evt);
+//	}
 	return -ENODATA; //NOT CORRECT ERROR
 }

@@ -38,9 +38,9 @@ static void listen_to(int event_id, int dir)
 	int ret;
 
 	while (1) {
-		printf("GOING TO WAIIT\n");
+//		printf("GOING TO WAIIT\n");
 		ret = syscall(accevt_wait, event_id);
-		printf("WOKEN UP\n");
+//		printf("WOKEN UP\n");
 		if (ret != 0)
 			return;
 		print_motion(dir);
@@ -97,17 +97,17 @@ int main(int argc, char **argv)
 	vertical.dlt_x = 1;
 	vertical.dlt_y = 1;
 	vertical.dlt_z = 50;
-	vertical.frq   = 20;
+	vertical.frq   = 15;
 
 	horizontal.dlt_x = 30;
 	horizontal.dlt_y = 1;
 	horizontal.dlt_z = 1;
-	horizontal.frq   = 20;
+	horizontal.frq   = 15;
 
 	bothdir.dlt_x = 10;
 	bothdir.dlt_y = 10;
 	bothdir.dlt_z = 30;
-	bothdir.frq   = 20;
+	bothdir.frq   = 15;
 	mids[VERTICAL] = syscall(accevt_create, &vertical);
 	if (mids[VERTICAL] < 0) {
 		perror("accevt_create");
