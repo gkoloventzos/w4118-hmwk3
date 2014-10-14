@@ -44,6 +44,8 @@ struct motion_event* get_n_motion_event(struct list_head *motions, int n)
 {
 	struct motion_event *mtn;
 
+	if (n <= 0)
+		return NULL;
 	spin_lock(&motion_events_lock);
 	if(list_empty(motions)) {
 		spin_unlock(&motion_events_lock);
@@ -60,28 +62,6 @@ struct motion_event* get_n_motion_event(struct list_head *motions, int n)
 }
 
 
-/*
- * Traverse the motions_list adn returns the number of events.
- * Returns -1 if the events already exists.
- * Lock sould be acquired before calling this function.
- */
-static int motion_exists(struct list_head *head, struct acc_motion *new)
-{
-	struct list_head *pos;
-	struct motion_event *old;
-	int num_events = 0;
-
-	list_for_each(pos, head) {
-		old = list_entry(pos, struct motion_event, list);
-		if (old->motion.dlt_x == new->dlt_x && 
-		    old->motion.dlt_y == new->dlt_y &&
-		    old->motion.dlt_z == new->dlt_z && 
-		    old->motion.frq == new->frq)
-			return -1;
-		++num_events;
-	}
-	return num_events;
-}
 
 int sys_accevt_create(struct acc_motion __user *acceleration)
 {
