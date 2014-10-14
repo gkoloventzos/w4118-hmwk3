@@ -76,7 +76,7 @@ int main(int argc, char **argv)
 	int ret;
 	int err;
 	pid_t pid;
-	int mids[3];
+	int mids[4];
 	struct timeval start;
 	struct acc_motion bothdir;
 	struct acc_motion vertical;
