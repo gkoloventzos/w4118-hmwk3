@@ -7,7 +7,7 @@
 #include <linux/acceleration.h>
 
 /*Define the noise*/
-#define NOISE 10
+#define NOISE 50
 
 /*Define the window*/
 #define WINDOW 20
