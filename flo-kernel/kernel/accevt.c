@@ -91,7 +91,7 @@ int sys_accevt_create(struct acc_motion __user *acceleration)
 	init_waitqueue_head(&(new_event->waiting_procs));
 	//new_event->happend = false;
 	//mutex_init(new_event->mutex);
-	new_event->processes = ATOMIC_INIT(0);
+//	new_event->processes = ATOMIC_INIT(0);
 	spin_lock(&motions_list_lock);
 	new_event->event_id = ++num_events;
 	list_add(&(new_event->list), &motion_events);
@@ -197,6 +197,7 @@ int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 	static int events;
 	struct motion_event *mtn;
 	struct acceleration_event *acc_evt;
+	struct acceleration_event *trash;
 
 	acc_evt = kmalloc(sizeof(struct acceleration_event), GFP_KERNEL);
 	if (!acc_evt) {
@@ -212,13 +213,18 @@ int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 	}
 
 	spin_lock(&acceleration_events_lock);
-	if (events == WINDOW + 1)
+	if (events == WINDOW + 1) {
+		trash = list_first_entry(&acceleration_events,
+				   struct acceleration_event,
+				   list);
 		list_del(acceleration_events.next);
-	else
+		printk(KERN_ERR "DELETED :%d %d %d\n", trash->dev_acc.x, trash->dev_acc.y, trash->dev_acc.z);
+		kfree(trash);
+	} else {
 		events++;
+	}
 	list_add_tail(&(acc_evt->list), &acceleration_events);
-
-	printk(KERN_ERR "REGISTERING :%d %d %d\n", acceleration->x, acceleration->y, acceleration->z);
+	printk(KERN_ERR "REGISTERED :%d %d %d\n", acceleration->x, acceleration->y, acceleration->z);
 //	printk(KERN_ERR "CHECKING MOTIONS\n");
 	spin_lock(&motion_events_lock);
 	list_for_each_entry(mtn, &motion_events, list) {
