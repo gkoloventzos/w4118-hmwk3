@@ -93,20 +93,20 @@ int main(int argc, char **argv)
 	/* CREATE MOTIONS
 	 * move this code some place else
 	 */
-	vertical.dlt_x = 10;
-	vertical.dlt_y = 10;
-	vertical.dlt_z = 100;
-	vertical.frq   = 100;
+	vertical.dlt_x = 1;
+	vertical.dlt_y = 1;
+	vertical.dlt_z = 10;
+	vertical.frq   = 10;
 
-	horizontal.dlt_x = 100;
-	horizontal.dlt_y = 100;
-	horizontal.dlt_z = 10;
-	horizontal.frq   = 100;
+	horizontal.dlt_x = 10;
+	horizontal.dlt_y = 10;
+	horizontal.dlt_z = 1;
+	horizontal.frq   = 10;
 
-	bothdir.dlt_x = 100;
-	bothdir.dlt_y = 100;
-	bothdir.dlt_z = 100;
-	bothdir.frq   = 100;
+	bothdir.dlt_x = 10;
+	bothdir.dlt_y = 10;
+	bothdir.dlt_z = 10;
+	bothdir.frq   = 10;
 
 	mids[0] = syscall(accevt_create, &vertical);
 	if (mids[0] < 0) {
