@@ -38,10 +38,10 @@ void listen_to(int child, int dir)
 	int ret;
 
 	while (1) {
-		ret = syscall(accevt_wait, &dir);
+		ret = syscall(accevt_wait, dir);
 		if (ret != 0)
 			return;
-		print_motion(child, dir);
+		print_motion(child, dir % 3);
 	}
 }
 
@@ -134,7 +134,7 @@ int main(int argc, char **argv)
 			perror("fork");
 			exit(EXIT_FAILURE);
 		} else if (!pid) {
-			listen_to(i, mids[i] % 3);
+			listen_to(i, mids[i]);
 			exit(EXIT_SUCCESS);
 		}
 	}
