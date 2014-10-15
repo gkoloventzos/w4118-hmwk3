@@ -4,7 +4,7 @@
  *
  * COMS W4118 implementation of syscalls for accelerometer events,
  * i.e., motions identification.
- * 
+ *
  */
 #include <linux/accevt.h>
 #include <asm-generic/errno-base.h>
@@ -74,7 +74,6 @@ int sys_accevt_create(struct acc_motion __user *acceleration)
 	unsigned int correct_frq;
 	int errno;
 	int rval;
-	printk(KERN_ERR "inside create\n");
 	correct_frq = MIN(acceleration->frq, WINDOW);
 	new_event = kmalloc(sizeof(struct motion_event), GFP_KERNEL);
 	if (new_event == NULL) {
@@ -96,7 +95,6 @@ int sys_accevt_create(struct acc_motion __user *acceleration)
 	new_event->event_id = ++num_events;
 	list_add(&(new_event->list), &motion_events);
 	spin_unlock(&motion_events_lock);
-	printk(KERN_ERR "Created ecvent eith id:%d\n", num_events);
 	return num_events;
 
 error:
@@ -116,21 +114,17 @@ int sys_accevt_wait(int event_id)
 
 	spin_lock(&motion_events_lock);
 	evt = get_motion_event_id(&motion_events, event_id);
-//	spin_unlock(&motion_events_lock);
 	if (evt == NULL) {
-		printk(KERN_ERR "WAIT ERR\n");
-		errno = -ENODATA; //NOT CORRECT ERROR
+		errno = -ENODATA;
 		goto error_unlock;
 	}
-//	mutex_lock(&evt->waiting_procs_lock);
 	++evt->waiting_procs_cnt;
 	spin_unlock(&motion_events_lock);
-//	mutex_unlock(&evt->waiting_procs_lock);
 
 
 	wait_event_interruptible(evt->waiting_procs, evt->happened);
 	mutex_lock(&evt->waiting_procs_lock);
-	if(!--evt->waiting_procs_cnt)
+	if (!--evt->waiting_procs_cnt)
 		evt->happened = false;
 	mutex_unlock(&evt->waiting_procs_lock);
 	return 0;
@@ -149,15 +143,12 @@ static int matching_acc(struct dev_acceleration first,
 			struct acc_motion motion)
 {
 
-//	printk(KERN_ERR "MATCHIN_ACC INVOKED\n");
 	if (abs(last.x - first.x) +
 	    abs(last.y - first.y) +
 	    abs(last.z - first.z) > NOISE) {
-//		printk(KERN_ERR "EXCEEDS NOISE\n");
 		if (abs(last.x - first.x) >= motion.dlt_x &&
 		    abs(last.y - first.y) >= motion.dlt_y &&
 		    abs(last.z - first.z) >= motion.dlt_z) {
-//printk(KERN_ERR "MATCHING motion: %d %d %d, %d %d %d NOISE:%d\n",  first.x, first.y, first.z, last.x, last.y, last.z, NOISE);
 			return 1;
 		}
 	}
@@ -195,15 +186,12 @@ int check_for_motion(struct list_head *acceleration_events,
 			prv_acc_evt = cur_acc_evt;
 			continue;
 		}
-//		printk(KERN_ERR "MATCH = %d\n", match);
 		match += matching_acc(prv_acc_evt->dev_acc,
 				      cur_acc_evt->dev_acc,
 				      motion);
 		prv_acc_evt = cur_acc_evt;
-		if (match >= motion.frq) {
-//			printk(KERN_ERR "MATCHEDDDDDDDDDDDDDDDDDDDDDDDDDDDD\n");
+		if (match >= motion.frq)
 			return 1;
-		}
 	}
 	return 0;
 }
@@ -244,19 +232,14 @@ int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 				   struct acceleration_event,
 				   list);
 		list_del(&trash->list);
-//		printk(KERN_ERR "DELETED :%d %d %d\n", trash->dev_acc.x, trash->dev_acc.y, trash->dev_acc.z);
 		kfree(trash);
 	} else {
 		events++;
 	}
 	list_add_tail(&(acc_evt->list), &acceleration_events);
-//	printk(KERN_ERR "REGISTERED :%d %d %d\n", acceleration->x, acceleration->y, acceleration->z);
-//	printk(KERN_ERR "CHECKING MOTIONS\n");
 	spin_lock(&motion_events_lock);
 	list_for_each_entry(mtn, &motion_events, list) {
-//		printk(KERN_ERR "mtn :%d %d %d\n", mtn->motion.dlt_x, mtn->motion.dlt_y, mtn->motion.dlt_z);
 		if (check_for_motion(&acceleration_events, mtn->motion)) {
-//			printk(KERN_ERR "DETECTED MOVEMENT\n");
 			mtn->happened = true;
 			wake_up_interruptible(&(mtn->waiting_procs));
 		}
@@ -280,36 +263,30 @@ int sys_accevt_destroy(int event_id)
 	int errno;
 	struct motion_event *evt;
 
-	printk(KERN_ERR "DESIIIYYYYYYYYYYYYYYYYYYYYYYYYYYYYy:%d \n", event_id);
 	spin_lock(&motion_events_lock);
 	evt = get_motion_event_id(&motion_events, event_id);
 	if (evt == NULL) {
-		printk(KERN_ERR "DESYYYYYYYYYYYYYYYYYy: ERROR\n");
 		errno =  -ENODATA;
 		goto error_unlock;
 	}
 	list_del(&(evt->list));
 	spin_unlock(&motion_events_lock);
 
-	printk(KERN_ERR "DESYYYYYYYYYYYYYYYYYy: NO ERROR\n");
 	mutex_lock(&evt->waiting_procs_lock);
 	evt->happened = true;
 	/* Is anybody sleeping? */
-	if (evt->waiting_procs_cnt) {
+	if (evt->waiting_procs_cnt)
 		wake_up_interruptible(&(evt->waiting_procs));
-	} else {
+	else
 		goto exit;
-	}
 	while (1) {
 		mutex_unlock(&evt->waiting_procs_lock);
 		mutex_lock(&evt->waiting_procs_lock);
-		printk(KERN_ERR "DESYYYYYYYYYYYYYYYYYy:%d\n", evt->waiting_procs_cnt);
-		if(!evt->waiting_procs_cnt)
+		if (!evt->waiting_procs_cnt)
 			break;
 	}
 exit:
 	mutex_unlock(&evt->waiting_procs_lock);
-	printk(KERN_ERR "BEFORE KFREE\n");
 	kfree(evt);
 	return 0;
 
