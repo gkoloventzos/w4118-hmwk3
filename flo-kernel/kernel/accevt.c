@@ -64,8 +64,11 @@ struct motion_event *get_motion_event_id(struct list_head *motions, int id)
 	return NULL;
 }
 
-
-
+/* Create an event based on motion.
+ * If frq exceeds WINDOW, cap frq at WINDOW.
+ * Return an event_id on success and the appropriate error on failure.
+ * system call number 379
+ */
 int sys_accevt_create(struct acc_motion __user *acceleration)
 {
 	struct motion_event *new_event;
@@ -103,6 +106,11 @@ error:
 
 }
 
+/* Block a process on an event.
+ * It takes the event_id as parameter. The event_id requires verification.
+ * Return 0 on success and the appropriate error on failure.
+ * system call number 380
+ */
 int sys_accevt_wait(int event_id)
 {
 	int errno;
@@ -203,6 +211,14 @@ int check_for_motion(struct list_head *acceleration_events,
 	return 0;
 }
 
+/* The acc_signal system call
+ * takes sensor data from user, stores the data in the kernel,
+ * generates a motion calculation, and notify all open events whose
+ * baseline is surpassed.  All processes waiting on a given event
+ * are unblocked.
+ * Return 0 success and the appropriate error on failure.
+ * system call number 381
+ */
 int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 {
 	int rval;
@@ -258,12 +274,15 @@ error:
 	return errno;
 }
 
-
+/* Destroy an acceleration event using the event_id,
+ * Return 0 on success and the appropriate error on failure.
+ * system call number 382
+ */
 int sys_accevt_destroy(int event_id)
 {
 	int errno;
 	struct motion_event *evt;
-	
+
 	printk(KERN_ERR "DESIIIYYYYYYYYYYYYYYYYYYYYYYYYYYYYy:%d \n", event_id);
 	spin_lock(&motions_list_lock);
 	evt = get_motion_event_id(&motion_events, event_id);

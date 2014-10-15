@@ -199,7 +199,8 @@ static int open_sensors(struct sensors_module_t **mSensorModule,
 	ssize_t count = (*mSensorModule)->get_sensors_list(*mSensorModule,
 							   &list);
 	size_t i;
-	for (i = 0 ; i < (size_t) count ; i++)
+
+	for (i = 0; i < (size_t) count; i++)
 		(*mSensorDevice)->activate(*mSensorDevice, list[i].handle, 1);
 
 	return 0;
@@ -209,6 +210,7 @@ static void enumerate_sensors(const struct sensors_module_t *sensors)
 {
 	int nr, s;
 	const struct sensor_t *slist = NULL;
+
 	if (!sensors)
 		printf("going to fail\n");
 
@@ -230,3 +232,4 @@ static void enumerate_sensors(const struct sensors_module_t *sensors)
 			effective_sensor = 0; /*the sensor ID*/
 	}
 }
+
