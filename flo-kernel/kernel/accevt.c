@@ -49,19 +49,18 @@ static DEFINE_SPINLOCK(motion_events_lock);
  * NOTE: The caller SHOULD hold the motion_events_lock
  */
 static inline
-struct motion_event *get_n_motion_event(struct list_head *motions, int n)
+struct motion_event *get_motion_event_id(struct list_head *motions, int id)
 {
 	struct motion_event *mtn;
 
-	if (n <= 0)
+	if (id <= 0)
 		return NULL;
 	if (list_empty(motions))
 		return NULL;
 
-	list_for_each_entry_reverse(mtn, motions, list) {
-		if (!--n)
+	list_for_each_entry_reverse(mtn, motions, list)
+		if (mtn->event_id == id)
 			return mtn;
-	}
 	return NULL;
 }
 
@@ -106,18 +105,21 @@ error:
 
 int sys_accevt_wait(int event_id)
 {
+	int errno;
 	struct motion_event *evt;
 
 	spin_lock(&motion_events_lock);
-	evt = get_n_motion_event(&motion_events, event_id);
-	spin_unlock(&motion_events_lock);
+	evt = get_motion_event_id(&motion_events, event_id);
+//	spin_unlock(&motion_events_lock);
 	if (evt == NULL) {
 		printk(KERN_ERR "WAIT ERR\n");
-		return -ENODATA; //NOT CORRECT ERROR
+		errno = -ENODATA; //NOT CORRECT ERROR
+		goto error_unlock;
 	}
-	mutex_lock(&evt->waiting_procs_lock);
+//	mutex_lock(&evt->waiting_procs_lock);
 	++evt->waiting_procs_cnt;
-	mutex_unlock(&evt->waiting_procs_lock);
+	spin_unlock(&motion_events_lock);
+//	mutex_unlock(&evt->waiting_procs_lock);
 
 
 	wait_event_interruptible(evt->waiting_procs, evt->happened);
@@ -125,9 +127,12 @@ int sys_accevt_wait(int event_id)
 	if(!--evt->waiting_procs_cnt)
 		evt->happened = false;
 	mutex_unlock(&evt->waiting_procs_lock);
-
 	//printk(KERN_ERR "WAIT\n");
 	return 0;
+
+error_unlock:
+	spin_unlock(&motion_events_lock);
+	return errno;
 }
 
 
@@ -147,7 +152,7 @@ static int matching_acc(struct dev_acceleration first,
 		if (abs(last.x - first.x) >= motion.dlt_x &&
 		    abs(last.y - first.y) >= motion.dlt_y &&
 		    abs(last.z - first.z) >= motion.dlt_z) {
-printk(KERN_ERR "MATCHING motion: %d %d %d, %d %d %d NOISE:%d\n",  first.x, first.y, first.z, last.x, last.y, last.z, NOISE);
+//printk(KERN_ERR "MATCHING motion: %d %d %d, %d %d %d NOISE:%d\n",  first.x, first.y, first.z, last.x, last.y, last.z, NOISE);
 			return 1;
 		}
 	}
@@ -185,7 +190,7 @@ int check_for_motion(struct list_head *acceleration_events,
 			prv_acc_evt = cur_acc_evt;
 			continue;
 		}
-		printk(KERN_ERR "MATCH = %d\n", match);
+//		printk(KERN_ERR "MATCH = %d\n", match);
 		match += matching_acc(prv_acc_evt->dev_acc,
 				      cur_acc_evt->dev_acc,
 				      motion);
@@ -226,19 +231,19 @@ int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 				   struct acceleration_event,
 				   list);
 		list_del(&trash->list);
-		printk(KERN_ERR "DELETED :%d %d %d\n", trash->dev_acc.x, trash->dev_acc.y, trash->dev_acc.z);
+//		printk(KERN_ERR "DELETED :%d %d %d\n", trash->dev_acc.x, trash->dev_acc.y, trash->dev_acc.z);
 		kfree(trash);
 	} else {
 		events++;
 	}
 	list_add_tail(&(acc_evt->list), &acceleration_events);
-	printk(KERN_ERR "REGISTERED :%d %d %d\n", acceleration->x, acceleration->y, acceleration->z);
+//	printk(KERN_ERR "REGISTERED :%d %d %d\n", acceleration->x, acceleration->y, acceleration->z);
 //	printk(KERN_ERR "CHECKING MOTIONS\n");
 	spin_lock(&motion_events_lock);
 	list_for_each_entry(mtn, &motion_events, list) {
 //		printk(KERN_ERR "mtn :%d %d %d\n", mtn->motion.dlt_x, mtn->motion.dlt_y, mtn->motion.dlt_z);
 		if (check_for_motion(&acceleration_events, mtn->motion)) {
-			printk(KERN_ERR "DETECTED MOVEMENT\n");
+//			printk(KERN_ERR "DETECTED MOVEMENT\n");
 			mtn->happened = true;
 			wake_up_interruptible(&(mtn->waiting_procs));
 		}
@@ -256,18 +261,38 @@ error:
 
 int sys_accevt_destroy(int event_id)
 {
+	int errno;
 	struct motion_event *evt;
-
-	evt = get_n_motion_event(&motion_events, event_id);
-	if (evt != NULL) {
-//		//remove queue?
-		//if (evt->waiting_procs_cnt) {
-			evt->happened = true;
-			wake_up_interruptible(&(evt->waiting_procs));
-		//	printk(KERN_ERR "Waking everything up\n");
-		//}
-		list_del(&(evt->list));
-		kfree(evt);
+	
+	printk(KERN_ERR "DESIIIYYYYYYYYYYYYYYYYYYYYYYYYYYYYy:%d \n", event_id);
+	spin_lock(&motions_list_lock);
+	evt = get_motion_event_id(&motion_events, event_id);
+	if (evt == NULL) {
+		printk(KERN_ERR "DESYYYYYYYYYYYYYYYYYy: ERROR\n");
+		errno =  -ENODATA;
+		goto error_unlock;
 	}
-	return -ENODATA; //NOT CORRECT ERROR
+	list_del(&(evt->list));
+	spin_unlock(&motions_list_lock);
+
+	printk(KERN_ERR "DESYYYYYYYYYYYYYYYYYy: NO ERROR\n");
+	mutex_lock(&evt->waiting_procs_lock);
+	evt->happened = true;
+	/* Is anybody sleeping? */
+	if (evt->waiting_procs_cnt)
+		wake_up_interruptible(&(evt->waiting_procs));
+	while (1) {
+		mutex_unlock(&evt->waiting_procs_lock);
+		mutex_lock(&evt->waiting_procs_lock);
+		if(!evt->waiting_procs_cnt)
+			break;
+	}
+	mutex_unlock(&evt->waiting_procs_lock);
+	printk(KERN_ERR "BEFORE KFREE\n");
+	kfree(evt);
+	return 0;
+
+error_unlock:
+	spin_unlock(&motions_list_lock);
+	return errno;
 }
