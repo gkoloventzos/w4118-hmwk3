@@ -13,10 +13,8 @@
 #include <linux/acceleration.h>
 #include <asm-generic/errno-base.h>
 
-
 static DEFINE_SPINLOCK(acc_lock);
 static struct dev_acceleration dev_acc;
-
 
 /*
  * Set current device acceleration in the kernel.
