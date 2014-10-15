@@ -92,6 +92,7 @@ int sys_accevt_create(struct acc_motion __user *acceleration)
 	unsigned int correct_frq;
 	int errno;
 	int rval;
+
 	correct_frq = MIN(acceleration->frq, WINDOW);
 	new_event = kmalloc(sizeof(struct motion_event), GFP_KERNEL);
 	if (new_event == NULL) {
