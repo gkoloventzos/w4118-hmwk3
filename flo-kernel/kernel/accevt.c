@@ -124,10 +124,10 @@ int sys_accevt_wait(int event_id)
 
 	wait_event_interruptible(evt->waiting_procs, evt->happened);
 	mutex_lock(&evt->waiting_procs_lock);
+	printk(KERN_ERR "WAIT:%d\n", evt->waiting_procs_cnt);
 	if(!--evt->waiting_procs_cnt)
 		evt->happened = false;
 	mutex_unlock(&evt->waiting_procs_lock);
-	//printk(KERN_ERR "WAIT\n");
 	return 0;
 
 error_unlock:
@@ -279,14 +279,19 @@ int sys_accevt_destroy(int event_id)
 	mutex_lock(&evt->waiting_procs_lock);
 	evt->happened = true;
 	/* Is anybody sleeping? */
-	if (evt->waiting_procs_cnt)
+	if (evt->waiting_procs_cnt) {
 		wake_up_interruptible(&(evt->waiting_procs));
+	} else {
+		goto exit;
+	}
 	while (1) {
 		mutex_unlock(&evt->waiting_procs_lock);
 		mutex_lock(&evt->waiting_procs_lock);
+		printk(KERN_ERR "DESYYYYYYYYYYYYYYYYYy:%d\n", evt->waiting_procs_cnt);
 		if(!evt->waiting_procs_cnt)
 			break;
 	}
+exit:
 	mutex_unlock(&evt->waiting_procs_lock);
 	printk(KERN_ERR "BEFORE KFREE\n");
 	kfree(evt);
