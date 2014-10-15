@@ -2,7 +2,9 @@
  * kernel/accevt.c
  * Copyright (C) 2014 V. Atlidakis, G. Koloventzos, A. Papancea
  *
- * COMS W4118 implementation of syscalls for accelerometer
+ * COMS W4118 implementation of syscalls for accelerometer events,
+ * i.e., motions identification.
+ * 
  */
 #include <linux/accevt.h>
 #include <asm-generic/errno-base.h>
@@ -15,9 +17,6 @@
 #include <asm/atomic.h>
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
-
-
-static DEFINE_SPINLOCK(motions_list_lock);
 
 
 struct acceleration_event {
@@ -39,7 +38,6 @@ struct motion_event {
 	int waiting_procs_cnt;
 	struct list_head list;
 };
-
 LIST_HEAD(motion_events);
 static DEFINE_SPINLOCK(motion_events_lock);
 
@@ -64,8 +62,11 @@ struct motion_event *get_motion_event_id(struct list_head *motions, int id)
 	return NULL;
 }
 
-
-
+/* Create an event based on motion.
+ * If frq exceeds WINDOW, cap frq at WINDOW.
+ * Return an event_id on success and the appropriate error on failure.
+ * system call number 379
+ */
 int sys_accevt_create(struct acc_motion __user *acceleration)
 {
 	struct motion_event *new_event;
@@ -91,10 +92,10 @@ int sys_accevt_create(struct acc_motion __user *acceleration)
 	new_event->happened = false;
 	mutex_init(&new_event->waiting_procs_lock);
 	new_event->waiting_procs_cnt = 0;
-	spin_lock(&motions_list_lock);
+	spin_lock(&motion_events_lock);
 	new_event->event_id = ++num_events;
 	list_add(&(new_event->list), &motion_events);
-	spin_unlock(&motions_list_lock);
+	spin_unlock(&motion_events_lock);
 	printk(KERN_ERR "Created ecvent eith id:%d\n", num_events);
 	return num_events;
 
@@ -103,6 +104,11 @@ error:
 
 }
 
+/* Block a process on an event.
+ * It takes the event_id as parameter. The event_id requires verification.
+ * Return 0 on success and the appropriate error on failure.
+ * system call number 380
+ */
 int sys_accevt_wait(int event_id)
 {
 	int errno;
@@ -124,7 +130,6 @@ int sys_accevt_wait(int event_id)
 
 	wait_event_interruptible(evt->waiting_procs, evt->happened);
 	mutex_lock(&evt->waiting_procs_lock);
-	printk(KERN_ERR "WAIT:%d\n", evt->waiting_procs_cnt);
 	if(!--evt->waiting_procs_cnt)
 		evt->happened = false;
 	mutex_unlock(&evt->waiting_procs_lock);
@@ -203,6 +208,14 @@ int check_for_motion(struct list_head *acceleration_events,
 	return 0;
 }
 
+/* The acc_signal system call
+ * takes sensor data from user, stores the data in the kernel,
+ * generates a motion calculation, and notify all open events whose
+ * baseline is surpassed.  All processes waiting on a given event
+ * are unblocked.
+ * Return 0 success and the appropriate error on failure.
+ * system call number 381
+ */
 int sys_accevt_signal(struct dev_acceleration __user *acceleration)
 {
 	int rval;
@@ -258,14 +271,17 @@ error:
 	return errno;
 }
 
-
+/* Destroy an acceleration event using the event_id,
+ * Return 0 on success and the appropriate error on failure.
+ * system call number 382
+ */
 int sys_accevt_destroy(int event_id)
 {
 	int errno;
 	struct motion_event *evt;
-	
+
 	printk(KERN_ERR "DESIIIYYYYYYYYYYYYYYYYYYYYYYYYYYYYy:%d \n", event_id);
-	spin_lock(&motions_list_lock);
+	spin_lock(&motion_events_lock);
 	evt = get_motion_event_id(&motion_events, event_id);
 	if (evt == NULL) {
 		printk(KERN_ERR "DESYYYYYYYYYYYYYYYYYy: ERROR\n");
@@ -273,7 +289,7 @@ int sys_accevt_destroy(int event_id)
 		goto error_unlock;
 	}
 	list_del(&(evt->list));
-	spin_unlock(&motions_list_lock);
+	spin_unlock(&motion_events_lock);
 
 	printk(KERN_ERR "DESYYYYYYYYYYYYYYYYYy: NO ERROR\n");
 	mutex_lock(&evt->waiting_procs_lock);
@@ -298,6 +314,6 @@ exit:
 	return 0;
 
 error_unlock:
-	spin_unlock(&motions_list_lock);
+	spin_unlock(&motion_events_lock);
 	return errno;
 }
