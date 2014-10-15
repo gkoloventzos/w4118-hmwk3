@@ -19,15 +19,23 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 
+/*
+ * An acceleration event polled by the sensor.
+ */
 struct acceleration_event {
 	struct dev_acceleration dev_acc;
 	struct list_head list;
 };
+
+/*
+ * Create a list of acceleration events and
+ * protect it with a spinlock.
+ */
 static LIST_HEAD(acceleration_events);
 static DEFINE_SPINLOCK(acceleration_events_lock);
 
 /*
- * Definition of event list
+ * A motion event for which processes may wait
  */
 struct motion_event {
 	unsigned int event_id;
@@ -38,13 +46,23 @@ struct motion_event {
 	int waiting_procs_cnt;
 	struct list_head list;
 };
+
+/*
+ * Create a list of motion events and protect
+ * it with a mutex.
+ */
 LIST_HEAD(motion_events);
 static DEFINE_SPINLOCK(motion_events_lock);
 
+
 /*
- * Helper function....
+ * Helper function to search and fetch a specific
+ * motion event from motion events list.
  *
- * NOTE: The caller SHOULD hold the motion_events_lock
+ * @motions: The head of the motions' list
+ * @id:      The id of the event
+ *
+ * NOTE: The caller MUST hold the motion_events_lock
  */
 static inline
 struct motion_event *get_motion_event_id(struct list_head *motions, int id)
@@ -134,9 +152,13 @@ error_unlock:
 	return errno;
 }
 
-
 /*
- * Helper to substract to movements
+ * Helper fuction which checks if two consequtive acceleration
+ * events fullfil the requirements of a specific motion.
+ *
+ * @first:  The first acceleration event
+ * @last:   The second acceleraetion event
+ * @motion: The motion to check
  */
 static int matching_acc(struct dev_acceleration first,
 			struct dev_acceleration last,
@@ -156,11 +178,16 @@ static int matching_acc(struct dev_acceleration first,
 }
 
 /*
- * Helper function that checks if a specific motion is satisfied
- * from the movement data currently buffered into the kernel
+ * Helper function that checks if a specific motion is
+ * fulfilled by the acceleration events currently
+ * buffered into the kernel
+ *
+ * @acceleration_events: The list of the acceleration
+ *                       events currently buffered in
+ *                       the kernel.
+ * @motion:              The motion to check for
  *
  * NOTE that the caller MUST hold acceleration_events_lock
- *
  */
 static
 int check_for_motion(struct list_head *acceleration_events,
