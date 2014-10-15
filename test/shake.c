@@ -15,7 +15,7 @@
 #define BOTHDIR		3
 
 #define accevt_create	379
-#define accevt_wait	380
+#define accevt_wait		380
 #define accevt_destroy	382
 
 /*
@@ -27,12 +27,12 @@ static void print_motion(int dir)
 {
 	if (dir == VERTICAL)
 		printf("%ld detected a vertical shake\n", (long) getpid());
-//	else if (dir == HORIZONTALX || dir == HORIZONTALY)
-//		printf("%ld detected a horizontal shake\n", (long) getpid());
-//	else if (dir == BOTHDIR)
-//		printf("%ld detected a shake\n", (long) getpid());
-//	else
-//		printf("something went wrong...%d\n", dir);
+	else if (dir == HORIZONTALX || dir == HORIZONTALY)
+		printf("%ld detected a horizontal shake\n", (long) getpid());
+	else if (dir == BOTHDIR)
+		printf("%ld detected a shake\n", (long) getpid());
+	else
+		printf("something went wrong...%d\n", dir);
 }
 
 /*
@@ -47,7 +47,6 @@ static void listen_to(int event_id, int dir)
 		ret = syscall(accevt_wait, event_id);
 		/* if wait fails (i.e. nothing to wait for), return */
 		if (ret != 0) {
-//		printf("Waken UP:%d\n", ret);
 			perror("accevt_wait");
 			exit(EXIT_FAILURE);
 		}
@@ -170,33 +169,27 @@ int main(int argc, char **argv)
 		/* loop and do nothing for 60 seconds */
 		if (run_time(start) <= 15)
 			continue;
-		printf("GOING TO DESTROY\n");
 		/* start children cleanup, by destroying each motion event */
 		ret = syscall(accevt_destroy, mids[VERTICAL]);
-		printf("DESTROYED:%d\n", ret);
 		if (ret != 0) {
 			err = ret;
 			perror("accevt_destroy: VERTICAL");
 		}
 		ret = syscall(accevt_destroy, mids[HORIZONTALX]);
-		printf("DESTROYED:%d\n", ret);
 		if (ret != 0) {
 			err = ret;
 			perror("accevt_destroy: HORIZONTALX");
 		}
 		ret = syscall(accevt_destroy, mids[HORIZONTALY]);
-		printf("DESTROYED:%d\n", ret);
 		if (ret != 0) {
 			err = ret;
 			perror("accevt_destroy: HORIZONTALY");
 		}
 		ret = syscall(accevt_destroy, mids[BOTHDIR]);
-		printf("DESTROYED:%d\n", ret);
 		if (ret != 0) {
 			err = ret;
 			perror("accevt_destroy: BOTHDIR");
 		}
-		printf("DONEEEEEEEEEEEEEEEEEEEE DESTROY\n");
 		break;
 	}
 	/* wait for all children */
