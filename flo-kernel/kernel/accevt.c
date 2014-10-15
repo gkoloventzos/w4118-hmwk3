@@ -132,7 +132,7 @@ int sys_accevt_wait(int event_id)
 
 	wait_event_interruptible(evt->waiting_procs, evt->happened);
 	mutex_lock(&evt->waiting_procs_lock);
-	if(!--evt->waiting_procs_cnt)
+	if (!--evt->waiting_procs_cnt)
 		evt->happened = false;
 	mutex_unlock(&evt->waiting_procs_lock);
 	//printk(KERN_ERR "WAIT\n");
