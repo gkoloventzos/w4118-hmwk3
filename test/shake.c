@@ -167,7 +167,7 @@ int main(int argc, char **argv)
 	err = 0;
 	while (1) {
 		/* loop and do nothing for 60 seconds */
-		if (run_time(start) <= 15)
+		if (run_time(start) <= 60)
 			continue;
 		/* start children cleanup, by destroying each motion event */
 		ret = syscall(accevt_destroy, mids[VERTICAL]);

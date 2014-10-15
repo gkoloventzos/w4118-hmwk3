@@ -106,6 +106,9 @@ int sys_accevt_create(struct acc_motion __user *acceleration)
 		errno = -EFAULT;
 		goto error;
 	}
+	/* create the motion event and grab the lock
+	 * when trying to insert it.
+	 */
 	init_waitqueue_head(&(new_event->waiting_procs));
 	new_event->happened = false;
 	mutex_init(&new_event->waiting_procs_lock);
@@ -142,6 +145,10 @@ int sys_accevt_wait(int event_id)
 
 
 	wait_event_interruptible(evt->waiting_procs, evt->happened);
+	/*
+	 * the last notified proc assures noone else
+	 * will be woken up for this event.
+	 */
 	mutex_lock(&evt->waiting_procs_lock);
 	if (!--evt->waiting_procs_cnt)
 		evt->happened = false;
@@ -165,7 +172,6 @@ static int matching_acc(struct dev_acceleration first,
 			struct dev_acceleration last,
 			struct acc_motion motion)
 {
-
 	if (abs(last.x - first.x) +
 	    abs(last.y - first.y) +
 	    abs(last.z - first.z) > NOISE) {
@@ -195,8 +201,8 @@ int check_for_motion(struct list_head *acceleration_events,
 		  struct acc_motion motion)
 {
 	struct acceleration_event *cur_acc_evt, *prv_acc_evt;
-	int match;
-	int iter;
+	int match = 0;
+	int iter = 0;
 
 	if (list_empty(acceleration_events))
 		return 0;
@@ -206,8 +212,6 @@ int check_for_motion(struct list_head *acceleration_events,
 	prv_acc_evt = list_first_entry(acceleration_events,
 				       struct acceleration_event,
 				       list);
-	match = 0;
-	iter = 0;
 	list_for_each_entry(cur_acc_evt, acceleration_events, list) {
 		if (!iter) {
 			iter++;
