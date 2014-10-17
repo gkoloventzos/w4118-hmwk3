@@ -140,9 +140,11 @@ int sys_accevt_wait(int event_id)
 		errno = -ENODATA;
 		goto error_unlock;
 	}
-	++evt->waiting_procs_cnt;
 	spin_unlock(&motion_events_lock);
-
+	
+	mutex_lock(&evt->waiting_procs_lock);
+	++evt->waiting_procs_cnt;
+	mutex_unlock(&evt->waiting_procs_lock);
 
 	wait_event_interruptible(evt->waiting_procs, evt->happened);
 	/*
@@ -153,6 +155,7 @@ int sys_accevt_wait(int event_id)
 	if (!--evt->waiting_procs_cnt)
 		evt->happened = false;
 	mutex_unlock(&evt->waiting_procs_lock);
+
 	return 0;
 
 error_unlock:
