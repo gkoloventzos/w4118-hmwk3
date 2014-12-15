@@ -1,12 +1,10 @@
-E. Atlidakis, G. Koloventzos, A. Papancea
-UNI: ea2615, gk2409, alp2200
-Last updated: 10/14/2014
+Implementations of a locking primitive based on Android's accelerometer sensor events.
+==
+Copyright (C) 2014 V. Atlidakis, G. Koloventzos, A. Papancea
 
-ASSUMPTIONS:
+COMS-W4118 Columbia University
 
-We followed the instructions without making any additional assumptions.
-
-MODIFIED/ADDED FILES:
+## MODIFIED/ADDED FILES:
 
 - acceleration_d/Makefile
   customized Makefile for simple daemon operation or motion
@@ -51,7 +49,7 @@ MODIFIED/ADDED FILES:
 - utils/our_checkpatch.pl
   custom script that mass-checkpacks our repository
 
-RESOURCES USED:
+## RESOURCES USED:
 
 1. Linux Cross Reference
    http://lxr.free-electrons.com
